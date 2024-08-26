@@ -1,0 +1,71 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;netstandard2.1;netcoreapp3.1;net6.0</TargetFrameworks>
+		<nullable>enable</nullable>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>HalfMaid.Img</Title>
+		<LangVersion>10.0</LangVersion>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.0|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.1|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.1|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netcoreapp3.1|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netcoreapp3.1|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net6.0|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net6.0|AnyCPU'">
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)'=='netstandard2.1' ">
+    <PackageReference Include="OpenTK.Mathematics" Version="[4.1.0,)" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)'=='netcoreapp3.1' ">
+	<PackageReference Include="OpenTK.Mathematics" Version="[4.1.0,)" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)'=='net6.0' ">
+	<PackageReference Include="OpenTK.Mathematics" Version="[4.1.0,)" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)'=='netstandard2.0' ">
+	<PackageReference Include="System.Memory" Version="[4.5.5,)" />
+  </ItemGroup>
+
+	<ItemGroup>
+	  <None Include="FileFormats\Jpeg\LibJpegTurbo\linux-x64\libturbojpeg.so" Pack="true" PackagePath="runtimes\linux-x64\native" PackageCopyToOutput="true" />
+		<None Include="FileFormats\Jpeg\LibJpegTurbo\linux-x86\libturbojpeg.so" Pack="true" PackagePath="runtimes\linux-x86\native" PackageCopyToOutput="true" />
+		<None Include="FileFormats\Jpeg\LibJpegTurbo\win-x64\turbojpeg.dll" Pack="true" PackagePath="runtimes\win-x64\native" PackageCopyToOutput="true" />
+		<None Include="FileFormats\Jpeg\LibJpegTurbo\win-x86\turbojpeg.dll" Pack="true" PackagePath="runtimes\win-x86\native" PackageCopyToOutput="true" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EditorConfigFiles Remove="Z:\Dropbox\prog\HalfMaid.Img\HalfMaid.Img\.editorconfig" />
+	</ItemGroup>
+
+</Project>
