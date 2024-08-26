@@ -70,6 +70,8 @@ Nuget is your friend.
 
 This library has an external dependency on the **OpenTK.Mathematics** Nuget package.  Which, honestly, you should be using anyway because it's awesome, much nicer than System.Numerics for all of your vector/matrix needs.  For old platforms like .NET Framework 4.x, we _embed a full port_ of **OpenTK.Mathematics** and various newer `System` classes so that you can use `HalfMaid.Img` exactly the same way — no compromises, no tweaks.
 
+-----------------------------------------------------------------------------
+
 ## Classes
 
 These are the classes you're going to work with a lot in this library:
@@ -400,7 +402,7 @@ Both structs implement `IEquatable<T>`.  `Color24` can also be implicitly cast t
 | `operator -()` | 32, 24 | Componentwise subtraction on each color channel. |
 | `operator *()` | 32, 24 | Multiply each color channel by a scalar. |
 | `operator /()` | 32, 24 | Divide each color channel by a scalar. |
-| `operator |()` | 32, 24 | Componentwise bitwise-or of each color channel. |
+| `operator `&#124;`()` | 32, 24 | Componentwise bitwise-or of each color channel. |
 | `operator &()` | 32, 24 | Componentwise bitwise-and of each color channel. |
 | `operator ^()` | 32, 24 | Componentwise bitwise-exclusive-or of each color channel. |
 | `operator >>()` | 32, 24 | Bit-shift each color channel right by a count. |
@@ -802,11 +804,13 @@ When converting colors to a string, the colors will use the casing below; when p
 
 ## Credits, and support and contact info
 
-Have questions?  Found a bug?  Want a feature?  Submit it as an issue on Github:  https://www.github.com/seanofw/HalfMaid.Img
+Have questions?  Found a bug?  Want a feature?  Submit it as an issue on Github:  https://www.github.com/seanofw/HalfMaid.Img/issues
 
-Credits:
+**Credits:**
 
 * Most of this was written by Sean Werkema in 2019-2024, although some parts were based on an older C++ image library he wrote circa 2003.
 * The GIF LZW decoder/encoder classes are (_very_) loosely based on old C code published by Steve Rimmer in his book _Supercharged Bitmap Graphics_ in 1992.  The rest of the GIF file support is a clean-room implementation based on the published spec.
 * LibJpegTurbo is used for JPEG decoding, because JPEGs are a beast.
+* OpenTK.Mathematics is included in the .NET Standard 2.0 and .NET Framework 4.x builds for compatibility.
+* A couple of System classes from .NET itself have been backported to the .NET Standard 2.0 and .NET Framework 4.x builds for compatibility.
 * All other file-format decoders (BMP, Targa, PNG, Aseprite) are original clean-room implementations based on their published file format specs.
