@@ -6,6 +6,51 @@ Released under the [MIT Open-Source License](LICENSE.txt).  Share and enjoy 😁
 
 -----------------------------------------------------------------------------
 
+## Contents
+
+* [Introduction](#introduction)
+* [Installation](#installation)
+* [Classes](#classes)
+    * [Core classes](#core-classes)
+    * [Rational API](#rational-api)
+    * [Other classes](#other-classes)
+* [Image operations](#image-operations)
+    * [Properties](#properties)
+    * [Whole-image operations](#whole-image-operations)
+    * [Loading and saving](#loading-and-saving)
+    * [Resizing and resampling](#resizing-and-resampling)
+    * [Blitting and cropping](#blitting-and-cropping)
+    * [Orientation transformations](#orientation-transformations)
+    * [Color transformations](#color-transformations)
+    * [Color filters & effects](#color-filters-effects)
+    * [Color analysis and dithering](#color-analysis-and-dithering)
+    * [Drawing operations](#drawing-operations)
+    * [Image convolutions / Effects](#image-convolutions-effects)
+    * [Pixel transparency tests](#pixel-transparency-tests)
+    * [Color tests](#color-tests)
+    * [Operators](#operators)
+* [Image construction](#image-construction)
+* [Color32](#color32)
+    * [Color properties and fields](#color-proprerties-and-fields)
+    * [Color construction](#color-construction)
+    * [Color operators](#color-operators)
+    * [Operator-like methods](#operator-like-methods)
+    * [Color transformations](#color-transformations)
+    * [Color-space transformations](#color-space-transformations)
+    * [Color strings and parsing](#color-strings-and-parsing)
+* [Aseprite support](#aseprite-support)
+* [Flags and options](#flags-and-options)
+    * [Blit modes](#blit-modes)
+    * [Dithering algorithms](#dithering-algorithms)
+    * [Resampling algorithms](#resampling-algorithms)
+* [Palettes](#palettes)
+    * [Grayscale palettes](#grayscale-palettes)
+    * [Legacy and classic palettes](#legacy-and-classic-palettes)
+* [Appendix: Color names](#appendix-color-names)
+* [Credits, and support and contact info](#credits-and-support-and-contact-info)
+
+-----------------------------------------------------------------------------
+
 ## Introduction
 
 _Another_ image library?  _Why???_
