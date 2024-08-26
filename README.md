@@ -65,7 +65,7 @@ There are a few core design principles in this library:
 
 2. **No storage or layout guesswork.** \
     \
-    Okay, this is a lot like the point above, but it really means that if you've got RGB pixels, they're always stored as three bytes, in the order of _red_, _green_, and then _blue_.  Not BGR0, not BGAR, not every other row of pixels inverted, not ridiculous orders or data arrangements that haven't made sense since 1986.  There are no padding bytes, there are no extra bytes in each line, and the lines aren't backwards or upside-down.  Everythiong is left-to-right and top-to-bottom — simple, predictable layouts.  All of the excuses for why image data is arranged any other way than the _most obvious layouts_ need to join fanny packs, slap bracelets, and the Macarena in the dustbin of history.
+    Okay, this is a lot like the point above, but it really means that if you've got RGB pixels, they're always stored as three bytes, in the order of _red_, _green_, and then _blue_.  Not BGR0, not BGAR, not every other row of pixels inverted, not ridiculous orders or data arrangements that haven't made sense since 1986.  There are no padding bytes, there are no extra bytes in each line, and the lines aren't backwards or upside-down.  Everything is left-to-right and top-to-bottom — simple, predictable layouts.  All of the excuses for why image data is arranged any other way than the _most obvious layouts_ need to join fanny packs, slap bracelets, and the Macarena in the dustbin of history.
 
 3. **Batteries included.** \
     \
