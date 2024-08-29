@@ -2221,27 +2221,14 @@ namespace HalfMaid.Img
 		public void Gamma(double gamma)
 		{
 			Span<byte> remapTable = stackalloc byte[256];
+
 			for (int i = 0; i < 256; i++)
 			{
 				int raised = (int)(Math.Pow(i / 255.0f, gamma) * 255.0f + 0.5f);
 				remapTable[i] = (byte)Math.Max(Math.Min(raised, 255), 0);
 			}
 
-			unsafe
-			{
-				fixed (Color32* imageBase = Palette)
-				fixed (byte* remap = remapTable)
-				{
-					Color32* ptr = imageBase;
-					Color32* end = imageBase + Palette.Length;
-
-					while (ptr < end)
-					{
-						*ptr = new Color32(remap[ptr->R], remap[ptr->G], remap[ptr->B], ptr->A);
-						ptr++;
-					}
-				}
-			}
+			RemapValues(remapTable, remapTable, remapTable, remapTable);
 		}
 
 		/// <summary>
@@ -2255,32 +2242,23 @@ namespace HalfMaid.Img
 		/// <param name="bAmount">The amount of gamma adjustment to apply to the blue channel.</param>
 		public void Gamma(double rAmount, double gAmount, double bAmount)
 		{
-			Span<byte> remapTable = stackalloc byte[768];
+			Span<byte> redRemapTable = stackalloc byte[256];
+			Span<byte> greenRemapTable = stackalloc byte[256];
+			Span<byte> blueRemapTable = stackalloc byte[256];
+			Span<byte> alphaRemapTable = stackalloc byte[256];
+
 			for (int i = 0; i < 256; i++)
 			{
 				int raised = (int)(Math.Pow(i / 255.0, rAmount) * 255.0 + 0.5);
-				remapTable[i] = (byte)Math.Max(Math.Min(raised, 255), 0);
+				redRemapTable[i] = (byte)Math.Max(Math.Min(raised, 255), 0);
 				raised = (int)(Math.Pow(i / 255.0, gAmount) * 255.0 + 0.5);
-				remapTable[i + 256] = (byte)Math.Max(Math.Min(raised, 255), 0);
+				greenRemapTable[i] = (byte)Math.Max(Math.Min(raised, 255), 0);
 				raised = (int)(Math.Pow(i / 255.0, bAmount) * 255.0 + 0.5);
-				remapTable[i + 512] = (byte)Math.Max(Math.Min(raised, 255), 0);
+				blueRemapTable[i] = (byte)Math.Max(Math.Min(raised, 255), 0);
+				alphaRemapTable[i] = (byte)i;
 			}
 
-			unsafe
-			{
-				fixed (Color32* imageBase = Palette)
-				fixed (byte* remap = remapTable)
-				{
-					Color32* ptr = imageBase;
-					Color32* end = imageBase + Palette.Length;
-
-					while (ptr < end)
-					{
-						*ptr = new Color32(remap[ptr->R], remap[ptr->G + 256], remap[ptr->B + 512], ptr->A);
-						ptr++;
-					}
-				}
-			}
+			RemapValues(redRemapTable, greenRemapTable, blueRemapTable, alphaRemapTable);
 		}
 
 		/// <summary>
@@ -2492,6 +2470,30 @@ namespace HalfMaid.Img
 								*ptr++ = new Color32((byte)~src.R, src.G, src.B, src.A);
 							}
 							break;
+
+						case ColorChannel.Green:
+							while (ptr < end)
+							{
+								Color32 src = *ptr;
+								*ptr++ = new Color32(src.R, (byte)~src.G, src.B, src.A);
+							}
+							break;
+
+						case ColorChannel.Blue:
+							while (ptr < end)
+							{
+								Color32 src = *ptr;
+								*ptr++ = new Color32(src.R, src.G, (byte)~src.B, src.A);
+							}
+							break;
+
+						case ColorChannel.Alpha:
+							while (ptr < end)
+							{
+								Color32 src = *ptr;
+								*ptr++ = new Color32(src.R, src.G, src.B, (byte)~src.A);
+							}
+							break;
 					}
 				}
 			}
@@ -2620,6 +2622,150 @@ namespace HalfMaid.Img
 			}
 
 			Palette = Palettes.Grayscale256.ToArray();
+		}
+
+		/// <summary>
+		/// Adjust the brightness and contrast of the palette (R, G, and B channels).
+		/// </summary>
+		/// <param name="brightness">The brightness adjustment, on a scale
+		/// of -1.0 = all black, 0.0 = no change, and +1.0 = all white.</param>
+		/// <param name="contrast">The contrast adjustment on a scale of -1.0 = featureless gray,
+		/// 0.0 = no change, and +1.0 = maximum contrast (pure black and pure white).</param>
+		public void BrightnessContrast(double brightness, double contrast)
+		{
+			// Min and max describe the new color range on a scale of -1.0=black to +1.0=white.
+			double min = brightness - (1.0 + contrast);
+			double max = brightness + (1.0 + contrast);
+
+			AdjustRange(256 * (min * 0.5 + 0.5), 256 * (max * 0.5 + 0.5));
+		}
+
+		/// <summary>
+		/// Adjust the brightness range of the palette to the given values.  This "stretches"
+		/// the existing values of each channel to match the provided new range.  If passed
+		/// 0 and 256, no changes will be made to the palette.  The provided parameters may
+		/// be outside the normal range of 0 and 256:  Brightness adjustments will be clamped
+		/// to the allowed endpoints.
+		/// </summary>
+		/// <param name="newMin">The new minimum value.</param>
+		/// <param name="newRange">The new range, from that minimum.</param>
+		public void AdjustRange(double newMin, double newRange)
+		{
+			Span<byte> lookup = stackalloc byte[256];
+
+			for (int i = 0; i < 256; i++)
+				lookup[i] = (byte)Math.Min(Math.Max(newMin + (i / 256.0) * newRange + 0.5, 0), 255);
+
+			RemapValues(lookup, lookup, lookup, lookup);
+		}
+
+		/// <summary>
+		/// Adjust the brightness range of the palette to the given values.  This "stretches"
+		/// the existing values of each channel to match the provided new range.  If passed
+		/// 0 and 256, no changes will be made to the palette.  The provided parameters may
+		/// be outside the normal range of 0 and 256:  Brightness adjustments will be clamped
+		/// to the allowed endpoints.
+		/// </summary>
+		/// <param name="redNewMin">The new minimum value for the red channel.</param>
+		/// <param name="redRange">The new range, from that minimum, for the red channel.</param>
+		/// <param name="greenNewMin">The new minimum value for the green channel.</param>
+		/// <param name="greenRange">The new range, from that minimum, for the green channel.</param>
+		/// <param name="blueNewMin">The new minimum value for the blue channel.</param>
+		/// <param name="blueRange">The new range, from that minimum, for the blue channel.</param>
+		/// <param name="alphaNewMin">The new minimum value for the alpha channel.</param>
+		/// <param name="alphaRange">The new range, from that minimum, for the alpha channel.</param>
+		public void AdjustRange(double redNewMin, double redRange,
+			double greenNewMin, double greenRange,
+			double blueNewMin, double blueRange,
+			double alphaNewMin, double alphaRange)
+		{
+			Span<byte> redLookup = stackalloc byte[256];
+			Span<byte> greenLookup = stackalloc byte[256];
+			Span<byte> blueLookup = stackalloc byte[256];
+			Span<byte> alphaLookup = stackalloc byte[256];
+
+			for (int i = 0; i < 256; i++)
+			{
+				redLookup[i] = (byte)Math.Min(Math.Max(redNewMin + (i / 256.0) * redRange + 0.5, 0), 255);
+				greenLookup[i] = (byte)Math.Min(Math.Max(greenNewMin + (i / 256.0) * greenRange + 0.5, 0), 255);
+				blueLookup[i] = (byte)Math.Min(Math.Max(blueNewMin + (i / 256.0) * blueRange + 0.5, 0), 255);
+				alphaLookup[i] = (byte)Math.Min(Math.Max(alphaNewMin + (i / 256.0) * alphaRange + 0.5, 0), 255);
+			}
+
+			RemapValues(redLookup, greenLookup, blueLookup, alphaLookup);
+		}
+
+		/// <summary>
+		/// Perform a fast remapping of the colors in the palette via the given four
+		/// lookup tables, one table per channel.
+		/// </summary>
+		/// <param name="redLookup">A lookup table for the red channel, which must have at least 256 entries.</param>
+		/// <param name="greenLookup">A lookup table for the green channel, which must have at least 256 entries.</param>
+		/// <param name="blueLookup">A lookup table for the blue channel, which must have at least 256 entries.</param>
+		/// <param name="alphaLookup">A lookup table for the alpha channel, which must have at least 256 entries.</param>
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		public void RemapValues(ReadOnlySpan<byte> redLookup, ReadOnlySpan<byte> greenLookup,
+			ReadOnlySpan<byte> blueLookup, ReadOnlySpan<byte> alphaLookup)
+		{
+			if (redLookup.Length < 256)
+				throw new ArgumentException("Red lookup table is too small.");
+			if (greenLookup.Length < 256)
+				throw new ArgumentException("Green lookup table is too small.");
+			if (blueLookup.Length < 256)
+				throw new ArgumentException("Blue lookup table is too small.");
+			if (alphaLookup.Length < 256)
+				throw new ArgumentException("Alpha lookup table is too small.");
+
+			unsafe
+			{
+				fixed (Color32* paletteBase = Palette)
+				fixed (byte* red = redLookup)
+				fixed (byte* green = greenLookup)
+				fixed (byte* blue = blueLookup)
+				fixed (byte* alpha = alphaLookup)
+				{
+					Color32* ptr = paletteBase;
+					Color32* end = paletteBase + Palette.Length;
+
+					while (ptr + 8 <= end)
+					{
+						Color32 c;
+						c = ptr[0]; ptr[0] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[1]; ptr[1] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[2]; ptr[2] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[3]; ptr[3] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[4]; ptr[4] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[5]; ptr[5] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[6]; ptr[6] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[7]; ptr[7] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						ptr += 8;
+					}
+					if (ptr + 4 <= end)
+					{
+						Color32 c;
+						c = ptr[0]; ptr[0] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[1]; ptr[1] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[2]; ptr[2] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[3]; ptr[3] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						ptr += 4;
+					}
+					if (ptr + 2 <= end)
+					{
+						Color32 c;
+						c = ptr[0]; ptr[0] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						c = ptr[1]; ptr[1] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						ptr += 2;
+					}
+					if (ptr + 1 <= end)
+					{
+						Color32 c;
+						c = ptr[0]; ptr[0] = new Color32(red[c.R], green[c.G], blue[c.B], alpha[c.A]);
+						ptr += 1;
+					}
+				}
+			}
 		}
 
 		#endregion
