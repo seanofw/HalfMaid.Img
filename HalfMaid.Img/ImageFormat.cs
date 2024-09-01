@@ -14,6 +14,12 @@ namespace HalfMaid.Img
 	public readonly struct ImageFormat : IEquatable<ImageFormat>
 	{
 		/// <summary>
+		/// Image format names must conform to C-style naming conventions:  They
+		/// are identifiers, not arbitrary strings.
+		/// </summary>
+		private static readonly Regex _nameRegex = new Regex(@"^[a-zA-Z_][a-zA-Z0-9_]*$");
+
+		/// <summary>
 		/// No specific image format.
 		/// </summary>
 		public static readonly ImageFormat None = default;
@@ -47,12 +53,6 @@ namespace HalfMaid.Img
 		/// The name for this image format.
 		/// </summary>
 		public readonly string? Name { get; }
-
-		/// <summary>
-		/// Image format names must conform to C-style naming conventions:  They
-		/// are identifiers, not arbitrary strings.
-		/// </summary>
-		private static readonly Regex _nameRegex = new Regex(@"^[a-zA-Z_][a-zA-Z0-9_]*$");
 
 		/// <summary>
 		/// Construct a new image format with the given name.

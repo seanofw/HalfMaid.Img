@@ -43,14 +43,11 @@
 			Edit_Paste = new ToolStripMenuItem();
 			Orientation_Menu = new ToolStripMenuItem();
 			Orientation_FlipHorizontally = new ToolStripMenuItem();
-			Orientation_FlipHorizontallyInPlace = new ToolStripMenuItem();
 			Orientation_FlipVertically = new ToolStripMenuItem();
-			Orientation_FlipVerticallyInPlace = new ToolStripMenuItem();
 			Orientation_Separator1 = new ToolStripSeparator();
 			Orientation_Rotate90Clockwise = new ToolStripMenuItem();
 			Orientation_Rotate90Counterclockwise = new ToolStripMenuItem();
 			Orientation_Rotate180 = new ToolStripMenuItem();
-			Orientation_Rotate180InPlace = new ToolStripMenuItem();
 			Orientation_Separator2 = new ToolStripSeparator();
 			colorToolStripMenuItem = new ToolStripMenuItem();
 			Color_RGBA = new ToolStripMenuItem();
@@ -65,23 +62,24 @@
 			Color_SplitChannelB = new ToolStripMenuItem();
 			Color_SplitChannelA = new ToolStripMenuItem();
 			Effects_Menu = new ToolStripMenuItem();
-			Effects_Invert = new ToolStripMenuItem();
-			toolStripMenuItem5 = new ToolStripSeparator();
+			Effects_BrightnessContrast = new ToolStripMenuItem();
 			Effects_HueSaturationBrightness = new ToolStripMenuItem();
+			Effects_Gamma = new ToolStripMenuItem();
 			toolStripMenuItem7 = new ToolStripSeparator();
 			Effects_Grayscale = new ToolStripMenuItem();
 			Effects_Desaturate = new ToolStripMenuItem();
 			Effects_Sepia = new ToolStripMenuItem();
+			Effects_Invert = new ToolStripMenuItem();
 			toolStripMenuItem4 = new ToolStripSeparator();
-			Effects_Gamma = new ToolStripMenuItem();
-			toolStripMenuItem3 = new ToolStripSeparator();
+			Effects_GaussianBlur = new ToolStripMenuItem();
 			Effects_BoxBlur = new ToolStripMenuItem();
-			Effects_ApproximateGaussianBlur = new ToolStripMenuItem();
 			Effects_Sharpen = new ToolStripMenuItem();
+			toolStripMenuItem8 = new ToolStripSeparator();
 			Effects_Emboss = new ToolStripMenuItem();
 			Effects_EdgeDetect = new ToolStripMenuItem();
 			View_Menu = new ToolStripMenuItem();
 			Help_Menu = new ToolStripMenuItem();
+			Effects_ColorTemperature = new ToolStripMenuItem();
 			((System.ComponentModel.ISupportInitialize)ImageBox).BeginInit();
 			MenuStrip.SuspendLayout();
 			SuspendLayout();
@@ -190,7 +188,7 @@
 			// 
 			// Orientation_Menu
 			// 
-			Orientation_Menu.DropDownItems.AddRange(new ToolStripItem[] { Orientation_FlipHorizontally, Orientation_FlipHorizontallyInPlace, Orientation_FlipVertically, Orientation_FlipVerticallyInPlace, Orientation_Separator1, Orientation_Rotate90Clockwise, Orientation_Rotate90Counterclockwise, Orientation_Rotate180, Orientation_Rotate180InPlace, Orientation_Separator2 });
+			Orientation_Menu.DropDownItems.AddRange(new ToolStripItem[] { Orientation_FlipHorizontally, Orientation_FlipVertically, Orientation_Separator1, Orientation_Rotate90Clockwise, Orientation_Rotate90Counterclockwise, Orientation_Rotate180, Orientation_Separator2 });
 			Orientation_Menu.Name = "Orientation_Menu";
 			Orientation_Menu.Size = new Size(79, 20);
 			Orientation_Menu.Text = "&Orientation";
@@ -202,26 +200,12 @@
 			Orientation_FlipHorizontally.Text = "Flip &Horizontally";
 			Orientation_FlipHorizontally.Click += Orientation_FlipHorizontally_Click;
 			// 
-			// Orientation_FlipHorizontallyInPlace
-			// 
-			Orientation_FlipHorizontallyInPlace.Name = "Orientation_FlipHorizontallyInPlace";
-			Orientation_FlipHorizontallyInPlace.Size = new Size(225, 22);
-			Orientation_FlipHorizontallyInPlace.Text = "Flip Horizontally (inplace)";
-			Orientation_FlipHorizontallyInPlace.Click += Orientation_FlipHorizontallyInPlace_Click;
-			// 
 			// Orientation_FlipVertically
 			// 
 			Orientation_FlipVertically.Name = "Orientation_FlipVertically";
 			Orientation_FlipVertically.Size = new Size(225, 22);
 			Orientation_FlipVertically.Text = "Flip &Vertically";
 			Orientation_FlipVertically.Click += Orientation_FlipVertically_Click;
-			// 
-			// Orientation_FlipVerticallyInPlace
-			// 
-			Orientation_FlipVerticallyInPlace.Name = "Orientation_FlipVerticallyInPlace";
-			Orientation_FlipVerticallyInPlace.Size = new Size(225, 22);
-			Orientation_FlipVerticallyInPlace.Text = "Flip Vertically (inplace)";
-			Orientation_FlipVerticallyInPlace.Click += Orientation_FlipVerticallyInPlace_Click;
 			// 
 			// Orientation_Separator1
 			// 
@@ -248,13 +232,6 @@
 			Orientation_Rotate180.Size = new Size(225, 22);
 			Orientation_Rotate180.Text = "Rotate 180°";
 			Orientation_Rotate180.Click += Orientation_Rotate180_Click;
-			// 
-			// Orientation_Rotate180InPlace
-			// 
-			Orientation_Rotate180InPlace.Name = "Orientation_Rotate180InPlace";
-			Orientation_Rotate180InPlace.Size = new Size(225, 22);
-			Orientation_Rotate180InPlace.Text = "Rotate 180° (inplace)";
-			Orientation_Rotate180InPlace.Click += Orientation_Rotate180InPlace_Click;
 			// 
 			// Orientation_Separator2
 			// 
@@ -342,22 +319,17 @@
 			// 
 			// Effects_Menu
 			// 
-			Effects_Menu.DropDownItems.AddRange(new ToolStripItem[] { Effects_Invert, toolStripMenuItem5, Effects_HueSaturationBrightness, toolStripMenuItem7, Effects_Grayscale, Effects_Desaturate, Effects_Sepia, toolStripMenuItem4, Effects_Gamma, toolStripMenuItem3, Effects_BoxBlur, Effects_ApproximateGaussianBlur, Effects_Sharpen, Effects_Emboss, Effects_EdgeDetect });
+			Effects_Menu.DropDownItems.AddRange(new ToolStripItem[] { Effects_BrightnessContrast, Effects_HueSaturationBrightness, Effects_ColorTemperature, Effects_Gamma, toolStripMenuItem7, Effects_Grayscale, Effects_Desaturate, Effects_Sepia, Effects_Invert, toolStripMenuItem4, Effects_GaussianBlur, Effects_BoxBlur, Effects_Sharpen, toolStripMenuItem8, Effects_Emboss, Effects_EdgeDetect });
 			Effects_Menu.Name = "Effects_Menu";
 			Effects_Menu.Size = new Size(54, 20);
 			Effects_Menu.Text = "E&ffects";
 			// 
-			// Effects_Invert
+			// Effects_BrightnessContrast
 			// 
-			Effects_Invert.Name = "Effects_Invert";
-			Effects_Invert.Size = new Size(224, 22);
-			Effects_Invert.Text = "&Invert";
-			Effects_Invert.Click += Effects_Invert_Click;
-			// 
-			// toolStripMenuItem5
-			// 
-			toolStripMenuItem5.Name = "toolStripMenuItem5";
-			toolStripMenuItem5.Size = new Size(221, 6);
+			Effects_BrightnessContrast.Name = "Effects_BrightnessContrast";
+			Effects_BrightnessContrast.Size = new Size(224, 22);
+			Effects_BrightnessContrast.Text = "Brightness/&Contrast...";
+			Effects_BrightnessContrast.Click += Effects_BrightnessContrast_Click;
 			// 
 			// Effects_HueSaturationBrightness
 			// 
@@ -365,6 +337,13 @@
 			Effects_HueSaturationBrightness.Size = new Size(224, 22);
 			Effects_HueSaturationBrightness.Text = "&Hue/Saturation/Brightness...";
 			Effects_HueSaturationBrightness.Click += Effects_HueSaturationBrightness_Click;
+			// 
+			// Effects_Gamma
+			// 
+			Effects_Gamma.Name = "Effects_Gamma";
+			Effects_Gamma.Size = new Size(224, 22);
+			Effects_Gamma.Text = "&Gamma...";
+			Effects_Gamma.Click += Effects_Gamma_Click;
 			// 
 			// toolStripMenuItem7
 			// 
@@ -392,36 +371,31 @@
 			Effects_Sepia.Text = "Se&pia...";
 			Effects_Sepia.Click += Effects_Sepia_Click;
 			// 
+			// Effects_Invert
+			// 
+			Effects_Invert.Name = "Effects_Invert";
+			Effects_Invert.Size = new Size(224, 22);
+			Effects_Invert.Text = "&Invert";
+			Effects_Invert.Click += Effects_Invert_Click;
+			// 
 			// toolStripMenuItem4
 			// 
 			toolStripMenuItem4.Name = "toolStripMenuItem4";
 			toolStripMenuItem4.Size = new Size(221, 6);
 			// 
-			// Effects_Gamma
+			// Effects_GaussianBlur
 			// 
-			Effects_Gamma.Name = "Effects_Gamma";
-			Effects_Gamma.Size = new Size(224, 22);
-			Effects_Gamma.Text = "&Gamma...";
-			Effects_Gamma.Click += Effects_Gamma_Click;
-			// 
-			// toolStripMenuItem3
-			// 
-			toolStripMenuItem3.Name = "toolStripMenuItem3";
-			toolStripMenuItem3.Size = new Size(221, 6);
+			Effects_GaussianBlur.Name = "Effects_GaussianBlur";
+			Effects_GaussianBlur.Size = new Size(224, 22);
+			Effects_GaussianBlur.Text = "Gaussian &Blur...";
+			Effects_GaussianBlur.Click += Effects_GaussianBlur_Click;
 			// 
 			// Effects_BoxBlur
 			// 
 			Effects_BoxBlur.Name = "Effects_BoxBlur";
 			Effects_BoxBlur.Size = new Size(224, 22);
-			Effects_BoxBlur.Text = "&Box Blur...";
+			Effects_BoxBlur.Text = "Bo&x Blur...";
 			Effects_BoxBlur.Click += Effects_BoxBlur_Click;
-			// 
-			// Effects_ApproximateGaussianBlur
-			// 
-			Effects_ApproximateGaussianBlur.Name = "Effects_ApproximateGaussianBlur";
-			Effects_ApproximateGaussianBlur.Size = new Size(224, 22);
-			Effects_ApproximateGaussianBlur.Text = "&Approx. Gaussian Blur...";
-			Effects_ApproximateGaussianBlur.Click += Effects_ApproximateGaussianBlur_Click;
 			// 
 			// Effects_Sharpen
 			// 
@@ -429,6 +403,11 @@
 			Effects_Sharpen.Size = new Size(224, 22);
 			Effects_Sharpen.Text = "&Sharpen...";
 			Effects_Sharpen.Click += Effects_Sharpen_Click;
+			// 
+			// toolStripMenuItem8
+			// 
+			toolStripMenuItem8.Name = "toolStripMenuItem8";
+			toolStripMenuItem8.Size = new Size(221, 6);
 			// 
 			// Effects_Emboss
 			// 
@@ -455,6 +434,13 @@
 			Help_Menu.Name = "Help_Menu";
 			Help_Menu.Size = new Size(44, 20);
 			Help_Menu.Text = "&Help";
+			// 
+			// Effects_ColorTemperature
+			// 
+			Effects_ColorTemperature.Name = "Effects_ColorTemperature";
+			Effects_ColorTemperature.Size = new Size(224, 22);
+			Effects_ColorTemperature.Text = "Color &Temperature...";
+			Effects_ColorTemperature.Click += Effects_ColorTemperature_Click;
 			// 
 			// MainForm
 			// 
@@ -499,9 +485,6 @@
 		private ToolStripMenuItem Effects_Invert;
 		private ToolStripMenuItem Effects_Grayscale;
 		private ToolStripMenuItem Effects_Sepia;
-		private ToolStripMenuItem Orientation_FlipHorizontallyInPlace;
-		private ToolStripMenuItem Orientation_FlipVerticallyInPlace;
-		private ToolStripMenuItem Orientation_Rotate180InPlace;
 		private ToolStripMenuItem Effects_Menu;
 		private ToolStripMenuItem colorToolStripMenuItem;
 		private ToolStripMenuItem Color_RGBA;
@@ -520,15 +503,16 @@
 		private ToolStripMenuItem Effects_BoxBlur;
 		private ToolStripMenuItem Effects_Sharpen;
 		private ToolStripMenuItem Effects_Emboss;
-		private ToolStripSeparator toolStripMenuItem5;
 		private ToolStripSeparator toolStripMenuItem4;
-		private ToolStripSeparator toolStripMenuItem3;
-		private ToolStripMenuItem Effects_ApproximateGaussianBlur;
 		private ToolStripMenuItem Effects_EdgeDetect;
 		private ToolStripSeparator toolStripMenuItem6;
 		private ToolStripMenuItem Edit_Copy;
 		private ToolStripMenuItem Edit_Paste;
 		private ToolStripMenuItem Effects_HueSaturationBrightness;
 		private ToolStripSeparator toolStripMenuItem7;
+		private ToolStripMenuItem Effects_BrightnessContrast;
+		private ToolStripMenuItem Effects_GaussianBlur;
+		private ToolStripSeparator toolStripMenuItem8;
+		private ToolStripMenuItem Effects_ColorTemperature;
 	}
 }

@@ -330,7 +330,8 @@ namespace ImgTest
 
 		private void Effects_Gamma_Click(object sender, EventArgs e)
 		{
-			AmountResult? result = AmountDialog.Show(this, "Gamma", 1.0, allowWeighting: false, exponentialMode: true);
+			AmountResult? result = AmountDialog.Show(this, "Gamma", 1.0,
+				allowWeighting: false, exponentialMode: true, max: 4.0);
 			if (result == null) return;
 
 			UpdateImageWithUndo(Image.Gamma(1.0 / result.Value), "Gamma");
@@ -436,6 +437,36 @@ namespace ImgTest
 
 			UpdateImageWithUndo(image => image.HueSaturationBrightness(hueSatBrt.Hue, hueSatBrt.Sat, hueSatBrt.Brt),
 				"Hue/Saturation/Brightness");
+		}
+
+		private void Effects_BrightnessContrast_Click(object sender, EventArgs e)
+		{
+			BrightnessContrast brightnessContrast = new BrightnessContrast();
+
+			DialogResult result = brightnessContrast.ShowDialog(this);
+			if (result != DialogResult.OK)
+				return;
+
+			UpdateImageWithUndo(Image.BrightnessContrast(brightnessContrast.Brt, brightnessContrast.Cont),
+				"Brightness/Contrast");
+		}
+
+		private void Effects_GaussianBlur_Click(object sender, EventArgs e)
+		{
+			AmountResult? result = AmountDialog.Show(this, "Gaussian Blur", 1.0,
+				exponentialMode: true, max: 50);
+			if (result == null) return;
+
+			UpdateImageWithUndo(Image.GaussianBlur(result.Value), "Gaussian Blur");
+		}
+
+		private void Effects_ColorTemperature_Click(object sender, EventArgs e)
+		{
+			AmountResult? result = AmountDialog.Show(this, "Color Temperature", 6600, max: 13200,
+				textFormat: "0");
+			if (result == null) return;
+
+			UpdateImageWithUndo(Image.ColorTemperature(result.Value), "Color Temperature");
 		}
 	}
 }

@@ -3099,6 +3099,56 @@ namespace HalfMaid.Img
 			}
 		}
 
+		/// <summary>
+		/// Adjust the color temperature of the image, in-place.  This uses
+		/// Tanner Helland's color-temperature technique, which he describes at
+		/// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html .
+		/// </summary>
+		/// <param name="temperature">The desired color temperature in Kelvin.  6600 effectively
+		/// leaves the image as-is.  Values from 1000 to 40000 are likely to work reasonably
+		/// well; values outside that range will be clamped to that range.</param>
+		public void ColorTemperature(double temperature)
+		{
+			// Ensure the temperature is within the supported range.
+			// Per Tanner's paper, temperatures outside the range of 1000
+			// to 40000 are unlikely to produce good results.
+			temperature = Math.Min(Math.Max(temperature, 1000), 40000) * 0.01;
+
+			// Calculate adjustment values, from 0 to 255.
+			double red = temperature <= 66 ? 255
+				: Math.Min(Math.Max(
+					329.698727446 * Math.Pow(temperature - 60, -0.1332047592),
+				0), 255);
+
+			double green = Math.Min(Math.Max((temperature <= 66
+					? 99.4708025861 * Math.Log(temperature) - 161.1195681661
+					: 288.1221695283 * Math.Pow(temperature - 60, -0.0755148492)),
+				0), 255);
+
+			double blue =
+				  temperature >= 66 ? 255.0
+				: temperature <= 19 ? 0.0
+				: Math.Min(Math.Max(
+					(138.5177312231 * Math.Log(temperature - 10) - 305.0447927307),
+				0), 255);
+
+			// Generate lookup tables, since each color channel can be adjusted independently.
+			Span<byte> redLookup = stackalloc byte[256];
+			Span<byte> greenLookup = stackalloc byte[256];
+			Span<byte> blueLookup = stackalloc byte[256];
+			Span<byte> alphaLookup = stackalloc byte[256];
+
+			for (int i = 0; i < 256; i++)
+			{
+				redLookup[i] = (byte)Math.Min(Math.Max(i * red * (1.0 / 255) + 0.5, 0), 255);
+				greenLookup[i] = (byte)Math.Min(Math.Max(i * green * (1.0 / 255) + 0.5, 0), 255);
+				blueLookup[i] = (byte)Math.Min(Math.Max(i * blue * (1.0 / 255) + 0.5, 0), 255);
+				alphaLookup[i] = (byte)i;
+			}
+
+			RemapValues(redLookup, greenLookup, blueLookup, alphaLookup);
+		}
+
 		#endregion
 
 		#region Channel extraction/combining
@@ -4998,7 +5048,7 @@ namespace HalfMaid.Img
 
 			// Clamp to the extent of the image.
 			int iMinY = (int)Math.Min(Math.Max(minY, 0), Height + 1);
-			int iMaxY = (int)(Math.Min(Math.Max(minY, 0), Height + 1) + 1f);
+			int iMaxY = (int)(Math.Min(Math.Max(maxY, 0), Height + 1) + 1f);
 
 			// Loop through the rows of the image.
 			for (int y = iMinY; y < iMaxY; y++)
@@ -5626,11 +5676,166 @@ namespace HalfMaid.Img
 		/// <param name="divideBySum">Whether to divide by the sum of the kernel
 		/// values applied, or to use the kernel values as-is.</param>
 		/// <returns>A copy of the image, with the convolution kernel applied.</returns>
+		[Pure]
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 		public Image32 ConvolveHorz(ReadOnlySpan<double> kernel, double strength = 1.0, bool divideBySum = false)
-			=> Convolve(kernel, kernel.Length, 1, strength, divideBySum);
+		{
+			if ((kernel.Length & 1) == 0)
+				throw new ArgumentException("Kernel length must be odd.", nameof(kernel));
+
+			Image32 result = new Image32(Width, Height);
+
+			// Precalculate the kernel sum (to make the innermost loop efficient).
+			Span<float> floatKernel = stackalloc float[kernel.Length];
+			float sum = 0;
+			for (int i = 0; i < kernel.Length; i++)
+			{
+				floatKernel[i] = (float)(kernel[i] * strength);
+				sum += floatKernel[i];
+			}
+			float ooFullSum = sum != 0 ? 1.0f / sum : 0.0f;
+
+			// Process each row of the image individually.
+			for (int y = 0; y < Height; y++)
+				ConvolveRow(y, floatKernel, divideBySum, (float)strength, ooFullSum, result);
+
+			return result;
+		}
+
+		/// <summary>
+		/// Convolve a single row of the image, efficiently.
+		/// </summary>
+		/// <param name="y">The Y coordinate of the row to convolve.</param>
+		/// <param name="kernel">The N-unit 1-dimensional kernel to apply.  This must
+		/// have an odd number of elements.  The center element will be aligned over
+		/// each target pixel, while elements before it will be applied to the left
+		/// of that pixel, and elements after it will be applied to the right of that
+		/// pixel.</param>
+		/// <param name="strength">How strong to apply the kernel, where 0.0 is not
+		/// at all, and 1.0 is the kernel as given.  Note that this value simply
+		/// describes how to multiply the given kernel against the identity kernel,
+		/// so values outside the range of 0.0 to 1.0 are well-defined.</param>
+		/// <param name="divideBySum">Whether to divide by the sum of the kernel
+		/// values applied, or to use the kernel values as-is.</param>
+		/// <param name="ooFullSum">1.0 divided by the sum of all of the kernel values.</param>
+		/// <param name="result">The resulting image that the convolved pixels will be written to.</param>
+		private void ConvolveRow(int y, ReadOnlySpan<float> kernel, bool divideBySum,
+			float strength, float ooFullSum, Image32 result)
+		{
+			int radius = kernel.Length >> 1;
+
+			Span<float> red = stackalloc float[Width];
+			Span<float> green = stackalloc float[Width];
+			Span<float> blue = stackalloc float[Width];
+
+			ReadOnlySpan<Color32> srcRow = Data.AsSpan().Slice(y * Width, Width);
+			Span<Color32> destRow = result.Data.AsSpan().Slice(y * Width, Width);
+
+			// Left edge pixels (partial kernel).
+			for (int x = 0; x < radius; x++)
+			{
+				float r = 0, g = 0, b = 0;
+				float sum = 0;
+				int kernelStart = radius - x;
+
+				for (int i = kernelStart; i < kernel.Length; i++)
+				{
+					Color32 c = srcRow[x + i - radius];
+					float k = kernel[i] * strength;
+					r += c.R * k;
+					g += c.G * k;
+					b += c.B * k;
+					sum += k;
+				}
+
+				if (divideBySum)
+				{
+					float ooSum = sum != 0 ? 1.0f / sum : 0;
+					red[x] = r * ooSum;
+					green[x] = g * ooSum;
+					blue[x] = b * ooSum;
+				}
+				else
+				{
+					red[x] = r;
+					green[x] = g;
+					blue[x] = b;
+				}
+			}
+
+			// Middle pixels (full kernel).
+			for (int x = radius; x < Width - radius; x++)
+			{
+				float r = 0, g = 0, b = 0;
+
+				for (int i = 0; i < kernel.Length; i++)
+				{
+					Color32 c = srcRow[x + i - radius];
+					float k = kernel[i] * strength;
+					r += c.R * k;
+					g += c.G * k;
+					b += c.B * k;
+				}
+
+				if (divideBySum)
+				{
+					red[x] = r * ooFullSum;
+					green[x] = g * ooFullSum;
+					blue[x] = b * ooFullSum;
+				}
+				else
+				{
+					red[x] = r;
+					green[x] = g;
+					blue[x] = b;
+				}
+			}
+
+			// Right edge pixels (partial kernel).
+			for (int x = Width - radius; x < Width; x++)
+			{
+				float r = 0, g = 0, b = 0;
+				float sum = 0;
+				int kernelEnd = kernel.Length - (x + radius - Width + 1);
+
+				for (int i = 0; i < kernelEnd; i++)
+				{
+					Color32 c = srcRow[x + i - radius];
+					float k = kernel[i] * strength;
+					r += c.R * k;
+					g += c.G * k;
+					b += c.B * k;
+					sum += k;
+				}
+
+				if (divideBySum)
+				{
+					float ooSum = sum != 0 ? 1.0f / sum : 0;
+					red[x] = r * ooSum;
+					green[x] = g * ooSum;
+					blue[x] = b * ooSum;
+				}
+				else
+				{
+					red[x] = r;
+					green[x] = g;
+					blue[x] = b;
+				}
+			}
+
+			// Copy the resulting convolved data into the destination image.
+			for (int x = 0; x < Width; x++)
+			{
+				destRow[x] = new Color32(
+					(byte)Math.Min(Math.Max((int)(red[x] + 0.5f), 0), 255),
+					(byte)Math.Min(Math.Max((int)(green[x] + 0.5f), 0), 255),
+					(byte)Math.Min(Math.Max((int)(blue[x] + 0.5f), 0), 255),
+					srcRow[x].A
+				);
+			}
+		}
 
 		/// <summary>
 		/// Apply a 1xN convolution kernel to the given image, generating a new
@@ -5650,11 +5855,166 @@ namespace HalfMaid.Img
 		/// <param name="divideBySum">Whether to divide by the sum of the kernel
 		/// values applied, or to use the kernel values as-is.</param>
 		/// <returns>A copy of the image, with the convolution kernel applied.</returns>
+		[Pure]
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 		public Image32 ConvolveVert(ReadOnlySpan<double> kernel, double strength = 1.0, bool divideBySum = false)
-			=> Convolve(kernel, 1, kernel.Length, strength, divideBySum);
+		{
+			if ((kernel.Length & 1) == 0)
+				throw new ArgumentException("Kernel length must be odd.", nameof(kernel));
+
+			Image32 result = new Image32(Width, Height);
+
+			// Precalculate the kernel sum (to make the innermost loop efficient).
+			Span<float> floatKernel = stackalloc float[kernel.Length];
+			float sum = 0;
+			for (int i = 0; i < kernel.Length; i++)
+			{
+				floatKernel[i] = (float)(kernel[i] * strength);
+				sum += floatKernel[i];
+			}
+			float ooFullSum = sum != 0 ? 1.0f / sum : 0.0f;
+
+			// Process each row of the image individually.
+			for (int x = 0; x < Width; x++)
+				ConvolveColumn(x, floatKernel, divideBySum, (float)strength, ooFullSum, result);
+
+			return result;
+		}
+
+		/// <summary>
+		/// Convolve a single column of the image, efficiently.
+		/// </summary>
+		/// <param name="x">The X coordinate of the row to convolve.</param>
+		/// <param name="kernel">The N-unit 1-dimensional kernel to apply.  This must
+		/// have an odd number of elements.  The center element will be aligned over
+		/// each target pixel, while elements before it will be applied to the left
+		/// of that pixel, and elements after it will be applied to the right of that
+		/// pixel.</param>
+		/// <param name="strength">How strong to apply the kernel, where 0.0 is not
+		/// at all, and 1.0 is the kernel as given.  Note that this value simply
+		/// describes how to multiply the given kernel against the identity kernel,
+		/// so values outside the range of 0.0 to 1.0 are well-defined.</param>
+		/// <param name="divideBySum">Whether to divide by the sum of the kernel
+		/// values applied, or to use the kernel values as-is.</param>
+		/// <param name="ooFullSum">1.0 divided by the sum of all of the kernel values.</param>
+		/// <param name="result">The resulting image that the convolved pixels will be written to.</param>
+		private void ConvolveColumn(int x, ReadOnlySpan<float> kernel, bool divideBySum,
+			float strength, float ooFullSum, Image32 result)
+		{
+			int radius = kernel.Length >> 1;
+
+			Span<float> red = stackalloc float[Height];
+			Span<float> green = stackalloc float[Height];
+			Span<float> blue = stackalloc float[Height];
+
+			ReadOnlySpan<Color32> srcColumn = Data.AsSpan().Slice(x);
+			Span<Color32> destColumn = result.Data.AsSpan().Slice(x);
+
+			// Top edge pixels (partial kernel).
+			for (int y = 0; y < radius; y++)
+			{
+				float r = 0, g = 0, b = 0;
+				float sum = 0;
+				int kernelStart = radius - y;
+
+				for (int i = kernelStart; i < kernel.Length; i++)
+				{
+					Color32 c = srcColumn[(y + i - radius) * Width];
+					float k = kernel[i] * strength;
+					r += c.R * k;
+					g += c.G * k;
+					b += c.B * k;
+					sum += k;
+				}
+
+				if (divideBySum)
+				{
+					float ooSum = sum != 0 ? 1.0f / sum : 0;
+					red[y] = r * ooSum;
+					green[y] = g * ooSum;
+					blue[y] = b * ooSum;
+				}
+				else
+				{
+					red[y] = r;
+					green[y] = g;
+					blue[y] = b;
+				}
+			}
+
+			// Middle pixels (full kernel).
+			for (int y = radius; y < Height - radius; y++)
+			{
+				float r = 0, g = 0, b = 0;
+
+				for (int i = 0; i < kernel.Length; i++)
+				{
+					Color32 c = srcColumn[(y + i - radius) * Width];
+					float k = kernel[i] * strength;
+					r += c.R * k;
+					g += c.G * k;
+					b += c.B * k;
+				}
+
+				if (divideBySum)
+				{
+					red[y] = r * ooFullSum;
+					green[y] = g * ooFullSum;
+					blue[y] = b * ooFullSum;
+				}
+				else
+				{
+					red[y] = r;
+					green[y] = g;
+					blue[y] = b;
+				}
+			}
+
+			// Bottom edge pixels (partial kernel).
+			for (int y = Height - radius; y < Height; y++)
+			{
+				float r = 0, g = 0, b = 0;
+				float sum = 0;
+				int kernelEnd = kernel.Length - (y + radius - Height + 1);
+
+				for (int i = 0; i < kernelEnd; i++)
+				{
+					Color32 srcColor = srcColumn[(y + i - radius) * Width];
+					float k = kernel[i];
+					r += srcColor.R * k;
+					g += srcColor.G * k;
+					b += srcColor.B * k;
+					sum += k;
+				}
+
+				if (divideBySum)
+				{
+					float ooSum = sum != 0 ? 1.0f / sum : 0;
+					red[y] = r * ooSum;
+					green[y] = g * ooSum;
+					blue[y] = b * ooSum;
+				}
+				else
+				{
+					red[y] = r;
+					green[y] = g;
+					blue[y] = b;
+				}
+			}
+
+			// Apply scale and set result
+			for (int y = 0; y < Height; y++)
+			{
+				destColumn[y * Width] = new Color32(
+					(byte)Math.Min(Math.Max((int)(red[y] + 0.5f), 0), 255),
+					(byte)Math.Min(Math.Max((int)(green[y] + 0.5f), 0), 255),
+					(byte)Math.Min(Math.Max((int)(blue[y] + 0.5f), 0), 255),
+					srcColumn[y * Width].A
+				);
+			}
+		}
 
 		/// <summary>
 		/// Apply an arbitrary MxN convolution kernel to the given image, generating a new
@@ -5675,6 +6035,7 @@ namespace HalfMaid.Img
 		/// <param name="divideBySum">Whether to divide by the sum of the kernel
 		/// values applied, or to use the kernel values as-is.</param>
 		/// <returns>A copy of the image, with the convolution kernel applied.</returns>
+		[Pure]
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
@@ -5764,6 +6125,65 @@ namespace HalfMaid.Img
 
 				return result;
 			}
+		}
+
+		/// <summary>
+		/// Apply a full Gaussian blur to the image.
+		/// </summary>
+		/// <param name="radius">The radius of the Gaussian blur, in pixels.</param>
+		/// <param name="sigma">The standard deviation of the Gaussian distribution.
+		/// If omitted, it will be determined from the radius.  This must not be zero.</param>
+		/// <param name="strength">How strongly to apply the blur; 1.0 will apply the blur fully,
+		/// while 0.0 will leave the original image unchanged.</param>
+		/// <returns>A new Image32 with the Gaussian blur applied.</returns>
+		[Pure]
+		public Image32 GaussianBlur(double radius, double? sigma = null, double strength = 1.0)
+		{
+			if (radius <= 0)
+				throw new ArgumentException("Blur radius cannot be negative or zero.", nameof(radius));
+			if (sigma <= 0)
+				throw new ArgumentException("Sigma cannot be negative or zero.", nameof(radius));
+
+			double[] kernel = CreateGaussianKernel(radius, sigma ?? radius * 0.5);
+
+			return ConvolveHorz(kernel, strength, true)
+				.ConvolveVert(kernel, strength, true);
+		}
+
+		/// <summary>
+		/// Create a one-dimensional Gaussian kernel.
+		/// </summary>
+		/// <param name="radius">The radius of the Gaussian kernel.</param>
+		/// <param name="sigma">The standard deviation of the Gaussian distribution.</param>
+		/// <returns>A double array representing the Gaussian kernel.</returns>
+		[Pure]
+		private static double[] CreateGaussianKernel(double radius, double sigma)
+		{
+			const double Sqrt2Pi = 2.5066282746310005; 
+			
+			int size = (int)Math.Ceiling(radius) * 2 + 1;
+
+			double[] kernel = new double[size];
+
+			double sum = 0;
+			double oo2SigmaSqr = 1.0 / (2.0 * sigma * sigma);
+			double ooSqrt2PiSigma = 1.0 / (Sqrt2Pi * sigma);
+			double offset = size >> 1;
+
+			// Calculate the raw kernel values.
+			for (int i = 0; i < size; i++)
+			{
+				double x = i - offset;
+				kernel[i] = Math.Exp(-x * x * oo2SigmaSqr) * ooSqrt2PiSigma;
+				sum += kernel[i];
+			}
+
+			// Normalize the kernel.
+			double ooSum = 1.0 / sum;
+			for (int i = 0; i < size; i++)
+				kernel[i] *= ooSum;
+
+			return kernel;
 		}
 
 		#endregion

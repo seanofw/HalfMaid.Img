@@ -2386,6 +2386,54 @@ namespace HalfMaid.Img
 			}
 		}
 
+		/// <summary>
+		/// Adjust the color temperature of the image, in-place.  This uses
+		/// Tanner Helland's color-temperature technique, which he describes at
+		/// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html .
+		/// </summary>
+		/// <param name="temperature">The desired color temperature in Kelvin.  6600 effectively
+		/// leaves the image as-is.  Values from 1000 to 40000 are likely to work reasonably
+		/// well; values outside that range will be clamped to that range.</param>
+		public void AdjustColorTemperature(double temperature)
+		{
+			// Ensure the temperature is within the supported range.
+			// Per Tanner's paper, temperatures outside the range of 1000
+			// to 40000 are unlikely to produce good results.
+			temperature = Math.Min(Math.Max(temperature, 1000), 40000) * 0.01;
+
+			// Calculate adjustment values, from 0 to 255.
+			double red = temperature <= 66 ? 255
+				: Math.Min(Math.Max(
+					329.698727446 * Math.Pow(temperature - 60, -0.1332047592),
+				0), 255);
+
+			double green = Math.Min(Math.Max((temperature <= 66
+					? 99.4708025861 * Math.Log(temperature) - 161.1195681661
+					: 288.1221695283 * Math.Pow(temperature - 60, -0.0755148492)),
+				0), 255);
+
+			double blue =
+				  temperature >= 66 ? 1.0
+				: temperature <= 19 ? 0.0
+				: Math.Min(Math.Max(
+					(138.5177312231 * Math.Log(temperature - 10) - 305.0447927307),
+				0), 255);
+
+			// Generate lookup tables, since each color channel can be adjusted independently.
+			Span<byte> redLookup = stackalloc byte[256];
+			Span<byte> greenLookup = stackalloc byte[256];
+			Span<byte> blueLookup = stackalloc byte[256];
+
+			for (int i = 0; i < 256; i++)
+			{
+				redLookup[i] = (byte)Math.Min(Math.Max(i * red, 0), 255);
+				greenLookup[i] = (byte)Math.Min(Math.Max(i * green, 0), 255);
+				blueLookup[i] = (byte)Math.Min(Math.Max(i * blue, 0), 255);
+			}
+
+			RemapValues(redLookup, greenLookup, blueLookup);
+		}
+
 		#endregion
 
 		#region Channel extraction/combining
@@ -3970,7 +4018,7 @@ namespace HalfMaid.Img
 
 			// Clamp to the extent of the image.
 			int iMinY = (int)Math.Min(Math.Max(minY, 0), Height + 1);
-			int iMaxY = (int)(Math.Min(Math.Max(minY, 0), Height + 1) + 1f);
+			int iMaxY = (int)(Math.Min(Math.Max(maxY, 0), Height + 1) + 1f);
 
 			// Loop through the rows of the image.
 			for (int y = iMinY; y < iMaxY; y++)

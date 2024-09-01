@@ -4,6 +4,9 @@
     <Compile Update="AmountDialog.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="BrightnessContrast.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="HueSatBrt.cs">
       <SubType>Form</SubType>
     </Compile>

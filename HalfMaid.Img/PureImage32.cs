@@ -1167,6 +1167,102 @@ namespace HalfMaid.Img
 			return copy;
 		}
 
+		/// <summary>
+		/// Adjust the brightness and contrast of the image (R, G, and B channels).
+		/// </summary>
+		/// <param name="brightness">The brightness adjustment, on a scale
+		/// of -1.0 = all black, 0.0 = no change, and +1.0 = all white.</param>
+		/// <param name="contrast">The contrast adjustment on a scale of -1.0 = featureless gray,
+		/// 0.0 = no change, and +1.0 = maximum contrast (pure black and pure white).</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage32 BrightnessContrast(double brightness, double contrast)
+		{
+			Image32 copy = _image.Clone();
+			copy.BrightnessContrast(brightness, contrast);
+			return copy;
+		}
+
+		/// <summary>
+		/// Adjust the brightness range of the image to the given values.  This "stretches"
+		/// the existing values of each channel to match the provided new range.  If passed
+		/// 0 and 256, no changes will be made to the image.  The provided parameters may
+		/// be outside the normal range of 0 and 256:  Brightness adjustments will be clamped
+		/// to the allowed endpoints.
+		/// </summary>
+		/// <param name="newMin">The new minimum value.</param>
+		/// <param name="newRange">The new range, from that minimum.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage32 AdjustRange(double newMin, double newRange)
+		{
+			Image32 copy = _image.Clone();
+			copy.AdjustRange(newMin, newRange);
+			return copy;
+		}
+
+		/// <summary>
+		/// Adjust the brightness range of the image to the given values.  This "stretches"
+		/// the existing values of each channel to match the provided new range.  If passed
+		/// 0 and 256, no changes will be made to the image.  The provided parameters may
+		/// be outside the normal range of 0 and 256:  Brightness adjustments will be clamped
+		/// to the allowed endpoints.
+		/// </summary>
+		/// <param name="redNewMin">The new minimum value for the red channel.</param>
+		/// <param name="redRange">The new range, from that minimum, for the red channel.</param>
+		/// <param name="greenNewMin">The new minimum value for the green channel.</param>
+		/// <param name="greenRange">The new range, from that minimum, for the green channel.</param>
+		/// <param name="blueNewMin">The new minimum value for the blue channel.</param>
+		/// <param name="blueRange">The new range, from that minimum, for the blue channel.</param>
+		/// <param name="alphaNewMin">The new minimum value for the alpha channel.</param>
+		/// <param name="alphaRange">The new range, from that minimum, for the alpha channel.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage32 AdjustRange(double redNewMin, double redRange,
+			double greenNewMin, double greenRange,
+			double blueNewMin, double blueRange,
+			double alphaNewMin, double alphaRange)
+		{
+			Image32 copy = _image.Clone();
+			copy.AdjustRange(redNewMin, redRange, greenNewMin, greenRange,
+				blueNewMin, blueRange, alphaNewMin, alphaRange);
+			return copy;
+		}
+
+		/// <summary>
+		/// Perform a fast remapping of the colors in the image via the given four
+		/// lookup tables, one table per channel.
+		/// </summary>
+		/// <param name="redLookup">A lookup table for the red channel, which must have at least 256 entries.</param>
+		/// <param name="greenLookup">A lookup table for the green channel, which must have at least 256 entries.</param>
+		/// <param name="blueLookup">A lookup table for the blue channel, which must have at least 256 entries.</param>
+		/// <param name="alphaLookup">A lookup table for the alpha channel, which must have at least 256 entries.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage32 RemapValues(ReadOnlySpan<byte> redLookup, ReadOnlySpan<byte> greenLookup,
+			ReadOnlySpan<byte> blueLookup, ReadOnlySpan<byte> alphaLookup)
+		{
+			Image32 copy = _image.Clone();
+			copy.RemapValues(redLookup, greenLookup, blueLookup, alphaLookup);
+			return copy;
+		}
+
+		/// <summary>
+		/// Adjust the color temperature of the image.  This uses
+		/// Tanner Helland's color-temperature technique, which he describes at
+		/// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html .
+		/// </summary>
+		/// <param name="temperature">The desired color temperature in Kelvin.  6600 effectively
+		/// leaves the image as-is.  Values from 1000 to 40000 are likely to work reasonably
+		/// well; values outside that range will be clamped to that range.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		public PureImage32 ColorTemperature(double temperature)
+		{
+			Image32 copy = _image.Clone();
+			copy.ColorTemperature(temperature);
+			return copy;
+		}
+
 		#endregion
 
 		#region Channel extraction/combining
@@ -1925,6 +2021,88 @@ namespace HalfMaid.Img
 		/// <returns>A copy of the image, with the convolution kernel applied.</returns>
 		public PureImage32 Convolve3x3(double[] kernel, double strength = 1.0, bool divideBySum = false)
 			=> _image.Convolve3x3(kernel, strength, divideBySum);
+
+		/// <summary>
+		/// Apply a Nx1 convolution kernel to the given image, generating a new
+		/// image and returning it.  Any values that lie outside the range of [0, 255]
+		/// will be clamped to their acceptable endpoints.  At the edges of the
+		/// image, only a partial kernel will be applied, and the kernel's divisor will
+		/// be adjusted accordingly.  The alpha values will not be affected.
+		/// </summary>
+		/// <param name="kernel">The N-unit 1-dimensional kernel to apply.  This must
+		/// have an odd number of elements.  The center element will be aligned over
+		/// each target pixel, while elements before it will be applied to the left
+		/// of that pixel, and elements after it will be applied to the right of that
+		/// pixel.</param>
+		/// <param name="strength">How strong to apply the kernel, where 0.0 is not
+		/// at all, and 1.0 is the kernel as given.  Note that this value simply
+		/// describes how to multiply the given kernel against the identity kernel,
+		/// so values outside the range of 0.0 to 1.0 are well-defined.</param>
+		/// <param name="divideBySum">Whether to divide by the sum of the kernel
+		/// values applied, or to use the kernel values as-is.</param>
+		/// <returns>A copy of the image, with the convolution kernel applied.</returns>
+		[Pure]
+		public PureImage32 ConvolveHorz(ReadOnlySpan<double> kernel, double strength = 1.0, bool divideBySum = false)
+			=> _image.ConvolveHorz(kernel, strength, divideBySum);
+
+		/// <summary>
+		/// Apply a 1xN convolution kernel to the given image, generating a new
+		/// image and returning it.  Any values that lie outside the range of [0, 255]
+		/// will be clamped to their acceptable endpoints.  At the edges of the
+		/// image, only a partial kernel will be applied, and the kernel's divisor will
+		/// be adjusted accordingly.  The alpha values will not be affected.
+		/// </summary>
+		/// <param name="kernel">The N-unit 1-dimensional kernel to apply.  This must
+		/// have an odd number of elements.  The center element will be aligned over
+		/// each target pixel, while elements before it will be applied above
+		/// that pixel, and elements after it will be applied below that pixel.</param>
+		/// <param name="strength">How strong to apply the kernel, where 0.0 is not
+		/// at all, and 1.0 is the kernel as given.  Note that this value simply
+		/// describes how to multiply the given kernel against the identity kernel,
+		/// so values outside the range of 0.0 to 1.0 are well-defined.</param>
+		/// <param name="divideBySum">Whether to divide by the sum of the kernel
+		/// values applied, or to use the kernel values as-is.</param>
+		/// <returns>A copy of the image, with the convolution kernel applied.</returns>
+		[Pure]
+		public PureImage32 ConvolveVert(ReadOnlySpan<double> kernel, double strength = 1.0, bool divideBySum = false)
+			=> _image.ConvolveVert(kernel, strength, divideBySum);
+
+		/// <summary>
+		/// Apply an arbitrary MxN convolution kernel to the given image, generating a new
+		/// image and returning it.  Any values that lie outside the range of [0, 255]
+		/// will be clamped to their acceptable endpoints.  At the edges of the
+		/// image, only a partial kernel will be applied, and the kernel's divisor will
+		/// be adjusted accordingly.  The alpha values will not be affected.
+		/// </summary>
+		/// <param name="kernel">The MxN kernel to apply.</param>
+		/// <param name="kernelWidth">The width of the convolution kernel (the number of
+		/// horizontal values).  This must be an odd number >= 1.</param>
+		/// <param name="kernelHeight">The height of the convolution kernel (the number of
+		/// vertical values).  This must be an odd number >= 1.</param>
+		/// <param name="strength">How strong to apply the kernel, where 0.0 is not
+		/// at all, and 1.0 is the kernel as given.  Note that this value simply
+		/// describes how to multiply the given kernel against the identity kernel,
+		/// so values outside the range of 0.0 to 1.0 are well-defined.</param>
+		/// <param name="divideBySum">Whether to divide by the sum of the kernel
+		/// values applied, or to use the kernel values as-is.</param>
+		/// <returns>A copy of the image, with the convolution kernel applied.</returns>
+		[Pure]
+		public PureImage32 Convolve(ReadOnlySpan<double> kernel, int kernelWidth, int kernelHeight,
+			double strength = 1.0, bool divideBySum = false)
+			=> _image.Convolve(kernel, kernelWidth, kernelHeight, strength, divideBySum);
+
+		/// <summary>
+		/// Apply a full Gaussian blur to the image.
+		/// </summary>
+		/// <param name="radius">The radius of the Gaussian blur, in pixels.</param>
+		/// <param name="sigma">The standard deviation of the Gaussian distribution.
+		/// If omitted, it will be determined from the radius.  This must not be zero.</param>
+		/// <param name="strength">How strongly to apply the blur; 1.0 will apply the blur fully,
+		/// while 0.0 will leave the original image unchanged.</param>
+		/// <returns>A copy of the image, with the Gaussian blur applied.</returns>
+		[Pure]
+		public PureImage32 GaussianBlur(double radius, double? sigma = null, double strength = 1.0)
+			=> _image.GaussianBlur(radius, sigma, strength);
 
 		#endregion
 
