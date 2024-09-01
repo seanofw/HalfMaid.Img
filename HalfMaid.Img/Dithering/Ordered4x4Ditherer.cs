@@ -34,5 +34,28 @@ namespace HalfMaid.Img.Dithering
 
 			return result;
 		}
+
+		public override Image8 Dither(Image24 image)
+		{
+			Image8 result = new Image8(image.Size, Palette.AsSpan());
+
+			Span<int> mixingPlan = stackalloc int[2];
+
+			for (int y = 0; y < image.Height; y++)
+			{
+				for (int x = 0; x < image.Width; x++)
+				{
+					Color24 color = image[x, y];
+
+					int amount = DeviseMixingPlan(color, mixingPlan, 16);
+
+					// Generate the mixing pattern of the two colors chosen.
+					int threshold = _thresholdMap4x4[((y & 3) << 2) | (x & 3)];
+					result[x, y] = (byte)(amount > threshold ? mixingPlan[1] : mixingPlan[0]);
+				}
+			}
+
+			return result;
+		}
 	}
 }

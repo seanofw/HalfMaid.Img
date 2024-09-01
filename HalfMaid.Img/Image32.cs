@@ -650,7 +650,7 @@ namespace HalfMaid.Img
 				return null;
 
 			// Attempt to load the image in something passably close to its native color format.
-			ImageLoadResult? loadResult = loader.LoadImage(data);
+			ImageLoadResult? loadResult = loader.LoadImage(data, PreferredImageType.Image32);
 			if (loadResult == null)
 				return null;
 
@@ -3845,7 +3845,7 @@ namespace HalfMaid.Img
 			bool useOriginalColors = false, bool includeAlpha = false)
 		{
 			(Color32 Color, int Count)[] histogram = Histogram(includeAlpha);
-			Color32[] palette = MedianCutQuantizer.Quantize(histogram, numColors, useOriginalColors, includeAlpha);
+			Color32[] palette = MedianCutQuantizer32.Quantize(histogram, numColors, useOriginalColors, includeAlpha);
 			return palette;
 		}
 
@@ -4006,11 +4006,71 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
-		/// Converting an Image to an Image is a no-op, but it is allowed, and does
+		/// Convert an Image32 to an Image24.
+		/// </summary>
+		/// <returns>A copy of this image.</returns>
+		[Pure]
+		public Image24 ToImage24()
+		{
+			Image24 image24 = new Image24(Width, Height);
+
+			unsafe
+			{
+				fixed (Color24* destBase = image24.Data)
+				fixed (Color32* srcBase = Data)
+				{
+					Color32* src = srcBase;
+					Color32* srcEnd = srcBase + Data.Length;
+					Color24* dest = destBase;
+
+					while (src + 8 <= srcEnd)
+					{
+						dest[0] = (Color24)src[0];
+						dest[1] = (Color24)src[1];
+						dest[2] = (Color24)src[2];
+						dest[3] = (Color24)src[3];
+						dest[4] = (Color24)src[4];
+						dest[5] = (Color24)src[5];
+						dest[6] = (Color24)src[6];
+						dest[7] = (Color24)src[7];
+						src += 8;
+						dest += 8;
+					}
+					if (src + 4 <= srcEnd)
+					{
+						dest[0] = (Color24)src[0];
+						dest[1] = (Color24)src[1];
+						dest[2] = (Color24)src[2];
+						dest[3] = (Color24)src[3];
+						src += 4;
+						dest += 4;
+					}
+					if (src + 2 <= srcEnd)
+					{
+						dest[0] = (Color24)src[0];
+						dest[1] = (Color24)src[1];
+						src += 2;
+						dest += 2;
+					}
+					if (src + 1 <= srcEnd)
+					{
+						dest[0] = (Color24)src[0];
+						src += 1;
+						dest += 1;
+					}
+				}
+			}
+
+			return image24;
+		}
+
+		/// <summary>
+		/// Converting an Image32 to an Image32 is a no-op, but it is allowed, and does
 		/// nothing more than simply Clone() the image.
 		/// </summary>
 		/// <returns>A copy of this image.</returns>
-		Image32 IImage.ToImage32()
+		[Pure]
+		public Image32 ToImage32()
 			=> Clone();
 
 		#endregion

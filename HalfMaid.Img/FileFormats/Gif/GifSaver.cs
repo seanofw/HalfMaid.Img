@@ -24,9 +24,14 @@ namespace HalfMaid.Img.FileFormats.Gif
 		/// </summary>
 		byte[] IImageSaver.SaveImage(Image32 image, IReadOnlyDictionary<string, object>? imageMetadata,
 			IFileSaveOptions? fileSaveOptions)
-		{
-			throw new NotSupportedException("GIF does not support writing truecolor images. Convert this image to a paletted Image8.");
-		}
+			=> throw new NotSupportedException("GIF does not support writing truecolor images. Convert this image to a paletted Image8.");
+
+		/// <summary>
+		/// Save a truecolor image.  GIF does not support truecolor, so this method only throws a NotSupportedException.
+		/// </summary>
+		byte[] IImageSaver.SaveImage(Image24 image, IReadOnlyDictionary<string, object>? imageMetadata,
+			IFileSaveOptions? fileSaveOptions)
+			=> throw new NotSupportedException("GIF does not support writing truecolor images. Convert this image to a paletted Image8.");
 
 		/// <summary>
 		/// Save an 8-bit paletted image as a GIF.

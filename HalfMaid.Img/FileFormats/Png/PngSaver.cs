@@ -80,7 +80,7 @@ namespace HalfMaid.Img.FileFormats.Png
 			// both and apply filtering for everything, because it may be beneficial.
 			ReadOnlySpan<byte> rawData = options.IncludeAlpha
 				? MemoryMarshal.Cast<Color32, byte>(image.Data.AsSpan())
-				: StripAlphaChannel(image.Data);
+				: MemoryMarshal.Cast<Color24, byte>(image.ToImage24().Data.AsSpan());
 			byte[] filteredData = PngFiltering.FilterWholeImage(rawData, image.Width, image.Height,
 				options.IncludeAlpha ? 4 : 3, options.FilterType);
 
@@ -95,25 +95,50 @@ namespace HalfMaid.Img.FileFormats.Png
 		}
 
 		/// <summary>
-		/// Given an array of RGBA colors, produce a new byte array that just has the RGB channels,
-		/// discarding the alpha channel.
+		/// Save a 24-bit RGB image as a PNG file.
 		/// </summary>
-		/// <param name="data">The source color data.</param>
-		/// <returns>The same data, minus the alpha (A) values.</returns>
-		private byte[] StripAlphaChannel(ReadOnlySpan<Color32> data)
+		/// <param name="image">The image to save.</param>
+		/// <param name="imageMetadata">Optional metadata to include with the image.  PNG
+		/// supports most of the standard image-metadata keys natively, and you may also
+		/// include custom text metadata by starting a key with a '.' character.</param>
+		/// <param name="fileSaveOptions">Save options.  If provided, this should be a
+		/// PngSaveOptions object.</param>
+		/// <returns>The resulting PNG file, as a byte array.</returns>
+		public byte[] SaveImage(Image24 image,
+			IReadOnlyDictionary<string, object>? imageMetadata = null,
+			IFileSaveOptions? fileSaveOptions = null)
 		{
-			byte[] result = new byte[data.Length * 3];
+			PngSaveOptions options = fileSaveOptions as PngSaveOptions ?? _defaultOptions;
 
-			int dest = 0;
-			for (int i = 0; i < data.Length; i++, dest += 3)
-			{
-				Color32 c = data[i];
-				result[dest    ] = c.R;
-				result[dest + 1] = c.G;
-				result[dest + 2] = c.B;
-			}
+			List<IPngChunk> chunks = new List<IPngChunk>();
 
-			return result;
+			// Write the IHDR.
+			chunks.Add(new PngIhdrChunk(image.Width, image.Height, 8, PngColorType.Rgb,
+				PngCompressionMethod.Deflate, PngFilterMethod.Filtered, PngInterlaceMethod.None));
+
+			// Write any required metadata just before the IDAT chunks start.
+			chunks.AddRange(WriteMetadata(imageMetadata ?? _emptyDictionary));
+
+			// Write any required metadata just before the IDAT chunks start.
+			chunks.AddRange(WriteMetadata(imageMetadata ?? _emptyDictionary));
+
+			// In paletted modes, there's often no value in using filtering,
+			// but we're obligated to emit a filter byte anyway for every scan line.
+			// And in grayscale mode, there can be as much value in filtering
+			// as in RGB modes.  So we might as well use the same code path for
+			// both and apply filtering for everything, because it may be beneficial.
+			ReadOnlySpan<byte> rawData = MemoryMarshal.Cast<Color24, byte>(image.Data.AsSpan());
+			byte[] filteredData = PngFiltering.FilterWholeImage(rawData, image.Width, image.Height,
+				3, options.FilterType);
+
+			// Compress the filtered data into one or more IDAT chunks.
+			chunks.AddRange(CompressFilteredDataToIDatChunks(filteredData, options));
+
+			// Write the IEND.
+			chunks.Add(new PngIEndChunk());
+
+			// Finally, serialize the chunks to raw bytes.
+			return ConvertChunksToBytes(chunks);
 		}
 
 		/// <summary>

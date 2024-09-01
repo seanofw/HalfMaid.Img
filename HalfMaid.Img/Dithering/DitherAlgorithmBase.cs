@@ -76,9 +76,17 @@ namespace HalfMaid.Img.Dithering
 		/// the currently-assigned color palette.</returns>
 		public abstract Image8 Dither(Image32 image);
 
+		/// <summary>
+		/// Perform dithering to 256 colors using the current color palette.
+		/// </summary>
+		/// <param name="image">The truecolor image to dither to the assigned palette.</param>
+		/// <returns>A remapped or dithered image that uses only 8 bits per pixel and
+		/// the currently-assigned color palette.</returns>
+		public abstract Image8 Dither(Image24 image);
+
 		#endregion
 
-		#region Reusable dither mechanics
+		#region Reusable dither mechanics (32-bit)
 
 		/// <summary>
 		/// Dither the given image to the given 8-bit palette using the given
@@ -88,9 +96,9 @@ namespace HalfMaid.Img.Dithering
 		/// <param name="ditherMatrix">The dither matrix to use for error diffusion.</param>
 		/// <param name="shift">The number of bits to shift by to normalize each error value.</param>
 		/// <returns>The color-reduced image.</returns>
-		protected Image8 DitherWithShift(Image32 image, DitherEntry[] ditherMatrix, int shift)
+		protected Image8 DitherWithShift(IImage image, DitherEntry[] ditherMatrix, int shift)
 		{
-			Image32 copy = image.Clone();
+			Image32 copy = image.ToImage32();
 			Color32[] data = copy.Data;
 
 			Image8 image8 = new Image8(image.Size, Palette.AsSpan());
@@ -144,9 +152,9 @@ namespace HalfMaid.Img.Dithering
 		/// <param name="ditherMatrix">The dither matrix to use for error diffusion.</param>
 		/// <param name="divisor">The divisor to use to normalize each error value.</param>
 		/// <returns>The color-reduced image.</returns>
-		protected Image8 DitherWithDivisor(Image32 image, DitherEntry[] ditherMatrix, int divisor)
+		protected Image8 DitherWithDivisor(IImage image, DitherEntry[] ditherMatrix, int divisor)
 		{
-			Image32 copy = image.Clone();
+			Image32 copy = image.ToImage32();
 			Color32[] data = copy.Data;
 
 			Image8 image8 = new Image8(image.Size, Palette.AsSpan());

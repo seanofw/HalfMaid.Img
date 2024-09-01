@@ -28,5 +28,13 @@ namespace HalfMaid.Img
 		/// <returns>A remapped or dithered image that uses only 8 bits per pixel and
 		/// the currently-assigned color palette.</returns>
 		Image8 Dither(Image32 image);
+
+		/// <summary>
+		/// Perform dithering to 256 colors using the current color palette.
+		/// </summary>
+		/// <param name="image">The truecolor image to dither to the assigned palette.</param>
+		/// <returns>A remapped or dithered image that uses only 8 bits per pixel and
+		/// the currently-assigned color palette.</returns>
+		Image8 Dither(Image24 image);
 	}
 }

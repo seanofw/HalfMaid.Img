@@ -22,7 +22,7 @@ namespace HalfMaid.Img.FileFormats.Bmp
 			= new Dictionary<string, object>();
 
 		/// <summary>
-		/// Save the given 24/32-bit RGBA image as a BMP file.
+		/// Save the given 32-bit RGBA image as a BMP file.
 		/// </summary>
 		/// <param name="image">The image to save.</param>
 		/// <param name="imageMetadata">Optional metadata to embed in the image, where supported.</param>
@@ -121,6 +121,79 @@ namespace HalfMaid.Img.FileFormats.Bmp
 						}
 						rowStart += rowSpan;
 					}
+				}
+			}
+
+			return outputWriter.Finish();
+		}
+
+		/// <summary>
+		/// Save the given 24-bit RGB image as a BMP file.
+		/// </summary>
+		/// <param name="image">The image to save.</param>
+		/// <param name="imageMetadata">Optional metadata to embed in the image, where supported.</param>
+		/// <param name="fileSaveOptions">If provided, this must be a BmpSaveOptions
+		/// instance, which will otherwise be ignored.</param>
+		public unsafe byte[] SaveImage(Image24 image,
+			IReadOnlyDictionary<string, object>? imageMetadata = null,
+			IFileSaveOptions? fileSaveOptions = null)
+		{
+			BitmapFileHeader fileHeader = default;
+			BitmapInfoHeaderV4 infoHeaderV4 = default;
+			ref BitmapInfoHeader infoHeader = ref infoHeaderV4.v1Header;
+
+			int headerSize = sizeof(BitmapInfoHeader);
+			int bytesPerPixel = 3;
+			int rowSpan = (image.Width * bytesPerPixel + 3) & ~3;
+			int dataSize = rowSpan * image.Height;
+
+			fileHeader.bfType[0] = (byte)'B';
+			fileHeader.bfType[1] = (byte)'M';
+			fileHeader.bfSize = (sizeof(BitmapFileHeader) + headerSize + dataSize).LE();
+			fileHeader.bfOffBits = (sizeof(BitmapFileHeader) + headerSize).LE();
+
+			imageMetadata ??= _emptyDictionary;
+
+			double pixelsPerMeterX = imageMetadata.TryGetValue(ImageMetadataKey.PixelsPerMeterX, out object? v) ? (double)v : 2835;
+			double pixelsPerMeterY = imageMetadata.TryGetValue(ImageMetadataKey.PixelsPerMeterY, out v) ? (double)v : 2835;
+
+			infoHeader.biSize = headerSize.LE();     // V4 header for RGBA, V1 header for RGB.
+			infoHeader.biPlanes = ((short)1).LE();
+			infoHeader.biWidth = image.Width.LE();
+			infoHeader.biHeight = image.Height.LE();
+			infoHeader.biBitCount = ((short)24).LE();
+			infoHeader.biCompression = (0).LE();
+			infoHeader.biSizeImage = dataSize;
+			infoHeader.biXPelsPerMeter = ((short)(pixelsPerMeterX + 0.5)).LE();
+			infoHeader.biYPelsPerMeter = ((short)(pixelsPerMeterY + 0.5)).LE();
+			infoHeader.biClrImportant = 0;
+			infoHeader.biClrUsed = 0;
+
+			using OutputWriter outputWriter = new OutputWriter();
+
+			byte* dest = outputWriter.FastWrite(sizeof(BitmapFileHeader));
+			Buffer.MemoryCopy(&fileHeader, dest, sizeof(BitmapFileHeader), sizeof(BitmapFileHeader));
+
+			dest = outputWriter.FastWrite(headerSize);
+			Buffer.MemoryCopy(&infoHeaderV4, dest, headerSize, headerSize);
+
+			dest = outputWriter.FastWrite(dataSize);
+			fixed (Color24* data = image.Data)
+			{
+				byte* rowStart = dest;
+				for (int y = image.Height - 1; y >= 0; y--)
+				{
+					Color24* src = data + image.Width * y;
+					byte* writePtr = rowStart;
+					for (int x = 0; x < image.Width; x++)
+					{
+						Color24 c = *src++;
+						writePtr[0] = c.B;
+						writePtr[1] = c.G;
+						writePtr[2] = c.R;
+						writePtr += 3;
+					}
+					rowStart += rowSpan;
 				}
 			}
 

@@ -267,6 +267,13 @@ namespace HalfMaid.Img
 			=> _image.Clone();
 
 		/// <summary>
+		/// Convert this image to a 24-bit RGBA image.
+		/// </summary>
+		[Pure]
+		public Image24 ToImage24()
+			=> _image.ToImage24();
+
+		/// <summary>
 		/// Convert this image to a 32-bit RGBA image.
 		/// </summary>
 		[Pure]

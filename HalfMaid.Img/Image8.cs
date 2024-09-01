@@ -566,6 +566,23 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
+		/// Make a perfect duplicate of this image and return it.
+		/// </summary>
+		/// <returns>The newly-cloned image.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		[Pure]
+		public Image8 ToImage8()
+			=> Clone();
+
+		/// <summary>
+		/// Promote this 8-bit paletted image to a 24-bit truecolor RGB image.
+		/// </summary>
+		/// <returns>A new 24-bit truecolor RGB image that contains the same pixels.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public Image24 ToImage24()
+			=> new Image24(Width, Height, Data, Palette);
+
+		/// <summary>
 		/// Promote this 8-bit paletted image to a 32-bit truecolor RGBA image.
 		/// </summary>
 		/// <returns>A new 32-bit truecolor RGBA image that contains the same pixels.</returns>
@@ -674,7 +691,7 @@ namespace HalfMaid.Img
 				return null;
 
 			// Attempt to load the image in something passably close to its native color format.
-			ImageLoadResult? loadResult = loader.LoadImage(data);
+			ImageLoadResult? loadResult = loader.LoadImage(data, PreferredImageType.Image8);
 			if (loadResult == null)
 				return null;
 

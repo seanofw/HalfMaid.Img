@@ -107,7 +107,7 @@ namespace HalfMaid.Img.FileFormats.Jpeg
 		}
 
 		/// <inheritdoc />
-		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data)
+		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data, PreferredImageType preferredImageType)
 		{
 			IntPtr tjHandle = Tj3.Init(InitType.Decompress);
 			try
@@ -154,11 +154,22 @@ namespace HalfMaid.Img.FileFormats.Jpeg
 					metadata[ImageMetadataKey.NumChannels] = 3;
 					metadata[ImageMetadataKey.BitsPerChannel] = 8;
 
-					byte[] pixels = Tj3.Decompress8(tjHandle, data, PixelFormat.Rgba);
+					if (preferredImageType == PreferredImageType.Image32)
+					{
+						byte[] pixels = Tj3.Decompress8(tjHandle, data, PixelFormat.Rgba);
 
-					return new ImageLoadResult(ImageFileColorFormat.Rgb24Bit,
-						new OpenTK.Mathematics.Vector2i(width, height),
-						new Image32(width, height, pixels), metadata);
+						return new ImageLoadResult(ImageFileColorFormat.Rgb24Bit,
+							new OpenTK.Mathematics.Vector2i(width, height),
+							new Image32(width, height, pixels), metadata);
+					}
+					else
+					{
+						byte[] pixels = Tj3.Decompress8(tjHandle, data, PixelFormat.Rgb);
+
+						return new ImageLoadResult(ImageFileColorFormat.Rgb24Bit,
+							new OpenTK.Mathematics.Vector2i(width, height),
+							new Image24(width, height, pixels), metadata);
+					}
 				}
 			}
 			finally

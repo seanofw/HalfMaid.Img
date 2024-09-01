@@ -42,6 +42,14 @@ namespace HalfMaid.Img
 		/// <returns>A copy of the image data, promoted or demoted to a 32-bit RGBA image
 		/// as necessary.</returns>
 		Image32 ToImage32();
+
+		/// <summary>
+		/// Every image type that is not 24-bit RGB must provide a method to convert
+		/// it to 24-bit RGB.  For 24-bit RGB images, this behaves the same as Clone().
+		/// </summary>
+		/// <returns>A copy of the image data, promoted or demoted to a 24-bit RGB image
+		/// as necessary.</returns>
+		Image24 ToImage24();
 	}
 
 	/// <summary>

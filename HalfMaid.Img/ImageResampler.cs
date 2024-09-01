@@ -211,6 +211,199 @@ namespace HalfMaid.Img
 			}
 		}
 
+		/// <summary>
+		/// Perform resampling using the chosen mode.  This is slower than nearest-neighbor
+		/// resampling, but it can produce much higher-fidelity results.  This overwrites all
+		/// pixels in the given destination image with new data.
+		/// </summary>
+		/// <param name="src">The source image to be resampled.</param>
+		/// <param name="dest">The destination image; the source will be resampled to exactly fit it.</param>
+		/// <param name="mode">The mode (sampling function) to use.</param>
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		public static unsafe void ResampleTo(Image24 src, Image24 dest, ResampleMode mode)
+		{
+			// Resample by one of a variety of different algorithms.  We use
+			// the general methodology suggested by Dale Schumacher (see the book
+			// Graphics Gems III).  The basic idea is that we set up a sampling
+			// kernel across each line of data and determine how much of each
+			// source sample factors into each destination sample; this will vary
+			// depending on the source sample's position.  This is a very general
+			// solution, allowing a variety of curves to be used to describe how
+			// individual pixels get included.  However, for simple box (nearest)
+			// filtering and triangular (linear) filtering, this solution is not as
+			// efficient as hand-coded solutions, but then you didn't really want
+			// to use those crappy filtering methods anyway, did you?
+
+			if (dest.Width <= 0 || dest.Height <= 0)
+				return;
+
+			const int SentinelValue = unchecked((int)0x8BADF00D);
+
+			ContribList* contribX = null;
+			Contrib* contribDataX = null;
+			ContribList* contribY = null;
+			Contrib* contribDataY = null;
+			Color24* temp = null;
+
+			try
+			{
+				(Func<float, float> resampleFunc, float support) = _resampleFuncs[(int)mode];
+
+				// Compute the spans (the maximum number of contributing source
+				// pixels per destination pixel).
+				float spanX = dest.Width < src.Width ? support * src.Width / dest.Width : support;
+				float spanY = dest.Height < src.Height ? support * src.Height / dest.Height : support;
+
+				// Allocate intermediate buffers.
+				int maxHorzContribs = (int)(spanX * 2 + 3) * dest.Width;
+				int maxVertContribs = (int)(spanY * 2 + 3) * dest.Height;
+				contribDataX = (Contrib*)Marshal.AllocHGlobal((maxHorzContribs + 1) * sizeof(Contrib));
+				contribDataY = (Contrib*)Marshal.AllocHGlobal((maxVertContribs + 1) * sizeof(Contrib));
+				contribX = (ContribList*)Marshal.AllocHGlobal((dest.Width + 1) * sizeof(ContribList));
+				contribY = (ContribList*)Marshal.AllocHGlobal((dest.Height + 1) * sizeof(ContribList));
+
+				// Add some sentinels so we can be sure we haven't overrun our memory buffers.
+				contribX[dest.Width].Contrib = null;
+				contribX[dest.Width].NumContributions = SentinelValue;
+				contribY[dest.Height].Contrib = null;
+				contribY[dest.Height].NumContributions = SentinelValue;
+				contribDataX[maxHorzContribs].Weight = 0;
+				contribDataX[maxHorzContribs].Pixel = SentinelValue;
+				contribDataY[maxVertContribs].Weight = 0;
+				contribDataY[maxVertContribs].Pixel = SentinelValue;
+
+				int tw = dest.Width, th = src.Height;
+				temp = (Color24*)Marshal.AllocHGlobal(tw * th * sizeof(Color24));
+
+				// Now it's time to do the setup.  We precalculate the contributions
+				// of each pixel in the horizontal scans and vertical scans and
+				// use a method similar to that of Schumacher to do it.  We can
+				// precalculate this because we only need to know the relative
+				// sizes of each image and the resampling method; this data has
+				// nothing to do with the current pixel values.
+
+				// Set up the contributions in each scan-line.
+				SetupContributions(contribX, contribDataX, dest.Width,
+					src.Width, resampleFunc, support, (ResampleMode)((int)mode >> 8));
+
+				// Set up the contributions in each column.
+				SetupContributions(contribY, contribDataY, dest.Height,
+					src.Height, resampleFunc, support, mode);
+
+				// Now that we have the contributions figured out, the rest of this
+				// is (mostly) easy:  Iterate across the destination image, and
+				// sum the source pixels that contribute to each destination pixel.
+				// Do this once into tempimage to resolve the horizontal part of the
+				// resampling; and do it again into dest to resolve the vertical.
+
+				// Horizontal resample first.
+				fixed (Color24* srcBase = src.Data)
+				{
+					Color24* destStart = temp;
+					Color24* srcPtr = srcBase;
+
+					for (int row = 0; row < th; row++)
+					{
+						Color24* destPtr = destStart;
+
+						for (int col = 0; col < tw; col++)
+						{
+							// Build up the correct fractional color.
+							int r = 0, g = 0, b = 0;
+							int len = contribX[col].NumContributions;
+							Debug.Assert(len <= 256);
+							Contrib* contribs = contribX[col].Contrib;
+							for (int i = 0; i < len; i++)
+							{
+								int index = contribs[i].Pixel;
+								Color24 color = srcPtr[index];
+								int weight = contribs[i].IntWeight;
+								r += color.R * weight;
+								g += color.G * weight;
+								b += color.B * weight;
+							}
+
+							// Scale and clamp the result to [0, 255].
+							byte br = ClampValue(r);
+							byte bg = ClampValue(g);
+							byte bb = ClampValue(b);
+
+							*destPtr++ = new Color24(br, bg, bb);
+						}
+
+						// Move to the next row and do it again.
+						destStart += tw;
+						srcPtr += src.Width;
+					}
+				}
+
+				// Okay, the horizontal resampling is done, and the horizontally-
+				// resampled image is correctly stored in temp.  Now we need to do
+				// the vertical resampling.
+				fixed (Color24* destBase = dest.Data)
+				{
+					Color24* destStart = destBase;
+					Color24* srcPtr = temp;
+					int dw = dest.Width, dh = dest.Height;
+
+					for (int row = 0; row < dh; row++)
+					{
+						Color24* destPtr = destStart;
+
+						for (int col = 0; col < dw; col++)
+						{
+							// Build up the correct fractional color.
+							int r = 0, g = 0, b = 0;
+							int len = contribY[row].NumContributions;
+							Debug.Assert(len <= 256);
+							Contrib* contribs = contribY[row].Contrib;
+							for (int i = 0; i < len; i++)
+							{
+								int index = contribs[i].Pixel * tw + col;
+								Color24 color = srcPtr[index];
+								int weight = contribs[i].IntWeight;
+								r += color.R * weight;
+								g += color.G * weight;
+								b += color.B * weight;
+							}
+
+							// Scale and clamp the result to [0, 255].
+							byte br = ClampValue(r);
+							byte bg = ClampValue(g);
+							byte bb = ClampValue(b);
+
+							*destPtr++ = new Color24(br, bg, bb);
+						}
+
+						// Go to the next row and do it again.
+						destStart += dw;
+					}
+				}
+
+				// Critical safety check.
+				if (contribX[dest.Width].NumContributions != SentinelValue
+					|| contribY[dest.Height].NumContributions != SentinelValue
+					|| contribDataX[maxHorzContribs].Pixel != SentinelValue
+					|| contribDataY[maxVertContribs].Pixel != SentinelValue)
+					throw new InvalidOperationException("Fatal error: Internal buffer overrun!");
+			}
+			finally
+			{
+				if (temp != null)
+					Marshal.FreeHGlobal((IntPtr)temp);
+				if (contribX != null)
+					Marshal.FreeHGlobal((IntPtr)contribX);
+				if (contribY != null)
+					Marshal.FreeHGlobal((IntPtr)contribY);
+				if (contribDataX != null)
+					Marshal.FreeHGlobal((IntPtr)contribDataX);
+				if (contribDataY != null)
+					Marshal.FreeHGlobal((IntPtr)contribDataY);
+			}
+		}
+
 		// A set of Contrib structures jointly describe which pixels will be
 		// joined to form the resulting pixel, and how much of each.  For
 		// example, with triangular (linear) filtering, when we're exactly

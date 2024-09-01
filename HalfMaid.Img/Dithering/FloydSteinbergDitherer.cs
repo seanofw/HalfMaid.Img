@@ -17,5 +17,7 @@
 
 		public override Image8 Dither(Image32 image)
 			=> DitherWithShift(image, _floydSteinberg, FloydSteinbergShift);
+		public override Image8 Dither(Image24 image)
+			=> DitherWithShift(image, _floydSteinberg, FloydSteinbergShift);
 	}
 }

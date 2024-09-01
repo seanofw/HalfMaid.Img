@@ -1453,12 +1453,19 @@ namespace HalfMaid.Img
 				useOriginalColors, includeAlpha, useVisualWeighting);
 
 		/// <summary>
+		/// Convert an Image32 to an Image24.
+		/// </summary>
+		/// <returns>A copy of this image.</returns>
+		public Image24 ToImage24()
+			=> _image.ToImage24();
+
+		/// <summary>
 		/// Converting an Image32 to an Image32 is a no-op, but it is allowed, and does
 		/// nothing more than simply Clone() the image.
 		/// </summary>
 		/// <returns>A copy of this image.</returns>
 		public Image32 ToImage32()
-			=> _image.Clone();
+			=> _image.ToImage32();
 
 		#endregion
 

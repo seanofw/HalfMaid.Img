@@ -21,5 +21,19 @@ namespace HalfMaid.Img.Dithering
 
 			return image8;
 		}
+
+		public override Image8 Dither(Image24 image)
+		{
+			Image8 image8 = new Image8(image.Size, Palette.AsSpan());
+
+			for (int i = 0, end = image.Width * image.Height; i < end; i++)
+			{
+				Color24 c = image.Data[i];
+				(_, int bestIndex) = ColorSearcher.FindNearest(c);
+				image8.Data[i] = (byte)bestIndex;
+			}
+
+			return image8;
+		}
 	}
 }

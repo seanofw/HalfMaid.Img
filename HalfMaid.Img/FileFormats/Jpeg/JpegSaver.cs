@@ -60,6 +60,40 @@ namespace HalfMaid.Img.FileFormats.Jpeg
 		}
 
 		/// <summary>
+		/// Save a 24-bit truecolor image as a JPEG.
+		/// </summary>
+		/// <param name="image">The image to save.</param>
+		/// <param name="imageMetadata">Optional metadata to include with the image.  Only the
+		/// Comment property of this is taken, if provided.</param>
+		/// <param name="fileSaveOptions">Save options.  This must be a JpegSaveOptions object
+		/// if not null.</param>
+		/// <returns>The resulting JPEG file, as a byte array.</returns>
+		public byte[] SaveImage(Image24 image,
+			IReadOnlyDictionary<string, object>? imageMetadata = null,
+			IFileSaveOptions? fileSaveOptions = null)
+		{
+			JpegSaveOptions? options = fileSaveOptions as JpegSaveOptions;
+
+			// JPEG doesn't do alpha, so we ignore the 'includeAlpha' option here.
+			// The rest is handled directly by libjpeg-turbo pretty much as-is.
+
+			IntPtr tjHandle = Tj3.Init(InitType.Compress);
+			try
+			{
+				Tj3.Set(tjHandle, Param.ColorSpace, (int)ColorSpace.YCbCr);
+				ApplyJpegOptions(tjHandle, options);
+				ReadOnlySpan<byte> bytes = MemoryMarshal.Cast<Color24, byte>(image.Data);
+				byte[] compressed = Tj3.Compress8(tjHandle, bytes, image.Width, image.Width * 3,
+					image.Height, PixelFormat.Rgb);
+				return compressed;
+			}
+			finally
+			{
+				Tj3.Destroy(tjHandle);
+			}
+		}
+
+		/// <summary>
 		/// Save an 8-bit paletted image as a JPEG.  This generally doesn't produce
 		/// good results, but it's not prohibited to do it.
 		/// </summary>

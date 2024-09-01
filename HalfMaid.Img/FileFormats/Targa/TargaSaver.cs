@@ -21,7 +21,7 @@ namespace HalfMaid.Img.FileFormats.Targa
 		public string DefaultExtension => ".tga";
 
 		/// <summary>
-		/// Save the given 24/32-bit RGBA image as a Targa file.
+		/// Save the given 32-bit RGBA image as a Targa file.
 		/// </summary>
 		/// <param name="image">The image to save.</param>
 		/// <param name="imageMetadata">Optional metadata to embed in the image, where supported.</param>
@@ -86,6 +86,56 @@ namespace HalfMaid.Img.FileFormats.Targa
 						dest[destPtr + 2] = c.R;
 						destPtr += 3;
 					}
+				}
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Save the given 24-bit RGB image as a Targa file.
+		/// </summary>
+		/// <param name="image">The image to save.</param>
+		/// <param name="imageMetadata">Optional metadata to embed in the image, where supported.</param>
+		/// <param name="fileSaveOptions">If provided, this must be a TargaSaveOptions
+		/// instance, which will otherwise be ignored.</param>
+		public byte[] SaveImage(Image24 image, IReadOnlyDictionary<string, object>? imageMetadata = null,
+			IFileSaveOptions? fileSaveOptions = null)
+		{
+			byte[] result = new byte[HeaderSize + image.Width * image.Height * 3];
+
+			Span<TargaHeader> header = MemoryMarshal.Cast<byte, TargaHeader>(result.AsSpan());
+			header[0].IdLength = 0;
+			header[0].ImageType = TargaImageType.Truecolor;
+			header[0].PaletteType = TargaPaletteType.NoPalette;
+			header[0].PaletteStart = 0;
+			header[0].PaletteLength = 0;
+			header[0].PaletteBits = 0;
+			header[0].XOrigin = 0;
+			header[0].YOrigin = 0;
+			header[0].Width = (ushort)image.Width.LE();
+			header[0].Height = (ushort)image.Height.LE();
+			header[0].BitsPerPixel = 24;
+			header[0].ImageDescriptor = (TargaImageDescriptor)(byte)0;
+
+			Span<byte> dest = result.AsSpan().Slice(HeaderSize);
+			int width = image.Width, height = image.Height;
+
+			// Copy the pixels, in BGR or BGRA format, upside-down the way Targa prefers them.
+			// We can technically use the image descriptor to flip the image, but the default
+			// "0" value is stored upside-down, and we want to stick with that, since some readers
+			// assume it.
+			int destPtr = 0;
+			for (int y = height - 1; y >= 0; y--)
+			{
+				ReadOnlySpan<Color24> src = image.Data.AsSpan().Slice(y * width);
+				for (int x = 0; x < width; x++)
+				{
+					Color24 c = src[x];
+					dest[destPtr + 0] = c.B;
+					dest[destPtr + 1] = c.G;
+					dest[destPtr + 2] = c.R;
+					destPtr += 3;
 				}
 			}
 

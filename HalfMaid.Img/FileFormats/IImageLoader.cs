@@ -35,8 +35,13 @@ namespace HalfMaid.Img.FileFormats
 		/// Load the data as whatever kind of image it is.
 		/// </summary>
 		/// <param name="data">The file data.</param>
+		/// <param name="preferredImageType">The type of image that the caller would
+		/// prefer to receive, if the loader is able to do so.  The caller is still
+		/// obligated to accept *any* returned image, but the loader can use this
+		/// flag to optimize its loading and provide an image that avoids a possible
+		/// later transformation of it.</param>
 		/// <returns>The resulting Image object, or null if the data couldn't be decoded.</returns>
-		ImageLoadResult? LoadImage(ReadOnlySpan<byte> data);
+		ImageLoadResult? LoadImage(ReadOnlySpan<byte> data, PreferredImageType preferredImageType);
 
 		/// <summary>
 		/// Test the given filename to see if it suggests an image of this type.  Some

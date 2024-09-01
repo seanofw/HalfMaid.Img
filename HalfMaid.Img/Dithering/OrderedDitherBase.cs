@@ -92,5 +92,6 @@ namespace HalfMaid.Img.Dithering
 		}
 
 		public abstract Image8 Dither(Image32 image);
+		public abstract Image8 Dither(Image24 image);
 	}
 }

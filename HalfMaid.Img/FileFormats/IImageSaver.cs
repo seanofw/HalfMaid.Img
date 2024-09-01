@@ -24,7 +24,7 @@ namespace HalfMaid.Img.FileFormats
 		string DefaultExtension { get; }
 
 		/// <summary>
-		/// Save the given 24/32-bit RGBA image as a file of the given type.
+		/// Save the given 32-bit RGBA image as a file of the given type.
 		/// </summary>
 		/// <param name="image">The image to save.</param>
 		/// <param name="imageMetadata">Optional metadata to embed in the image, where supported.</param>
@@ -33,6 +33,19 @@ namespace HalfMaid.Img.FileFormats
 		/// <exception cref="NotSupportedException">Thrown if this file format does
 		/// not support RGB or RGBA images.</exception>
 		byte[] SaveImage(Image32 image,
+			IReadOnlyDictionary<string, object>? imageMetadata = null,
+			IFileSaveOptions? fileSaveOptions = null);
+
+		/// <summary>
+		/// Save the given 24-bit RGB image as a file of the given type.
+		/// </summary>
+		/// <param name="image">The image to save.</param>
+		/// <param name="imageMetadata">Optional metadata to embed in the image, where supported.</param>
+		/// <param name="fileSaveOptions">Options specific to the chosen file format.</param>
+		/// <returns>The image converted to a file format of the given type.</returns>
+		/// <exception cref="NotSupportedException">Thrown if this file format does
+		/// not support RGB images.</exception>
+		byte[] SaveImage(Image24 image,
 			IReadOnlyDictionary<string, object>? imageMetadata = null,
 			IFileSaveOptions? fileSaveOptions = null);
 

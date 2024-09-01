@@ -129,7 +129,7 @@ namespace HalfMaid.Img.FileFormats.Gif
 		}
 
 		/// <inheritdoc />
-		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data)
+		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data, PreferredImageType preferredImageType)
 		{
 			GifImage? gifImage = LoadGif(data, false);
 			if (gifImage == null || gifImage.Frames.Count <= 0)

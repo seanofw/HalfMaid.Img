@@ -130,7 +130,7 @@ namespace HalfMaid.Img.FileFormats.Png
 		}
 
 		/// <inheritdoc />
-		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data)
+		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data, PreferredImageType preferredImageType)
 		{
 			// First, decode all the chunks in the PNG stream.
 			List<IPngChunk>? pngChunks = LoadChunks(data);
@@ -220,7 +220,8 @@ namespace HalfMaid.Img.FileFormats.Png
 			byte[] rawImageData = Zlib.Inflate(compressedImageData);
 
 			// Construct the image object that will hold the resulting image.
-			Image32? image = null;
+			Image32? image32 = null;
+			Image24? image24 = null;
 			Image8? image8 = null;
 			ImageFileColorFormat colorFormat = ImageFileColorFormat.Unknown;
 			Vector2i size = default;
@@ -239,10 +240,18 @@ namespace HalfMaid.Img.FileFormats.Png
 					break;
 
 				case PngColorType.Rgb:
-					image = new Image32(header.Width, header.Height);
 					colorFormat = header.BitDepth <= 8 ? ImageFileColorFormat.Rgb24Bit
 						: ImageFileColorFormat.Rgb48Bit;
-					size = image.Size;
+					if (preferredImageType == PreferredImageType.Image32)
+					{
+						image32 = new Image32(header.Width, header.Height);
+						size = image32.Size;
+					}
+					else
+					{
+						image24 = new Image24(header.Width, header.Height);
+						size = image24.Size;
+					}
 					break;
 
 				case PngColorType.Paletted:
@@ -253,17 +262,25 @@ namespace HalfMaid.Img.FileFormats.Png
 					break;
 
 				case PngColorType.GrayscaleAlpha:
-					image = new Image32(header.Width, header.Height);
+					image32 = new Image32(header.Width, header.Height);
 					colorFormat = header.BitDepth <= 8 ? ImageFileColorFormat.GrayAlpha8Bit
 						: ImageFileColorFormat.GrayAlpha16Bit;
-					size = image.Size;
+					size = image32.Size;
 					break;
 
 				case PngColorType.Rgba:
-					image = new Image32(header.Width, header.Height);
 					colorFormat = header.BitDepth <= 8 ? ImageFileColorFormat.Rgba32Bit
 						: ImageFileColorFormat.Rgba64Bit;
-					size = image.Size;
+					if (preferredImageType == PreferredImageType.Image24)
+					{
+						image24 = new Image24(header.Width, header.Height);
+						size = image24.Size;
+					}
+					else
+					{
+						image32 = new Image32(header.Width, header.Height);
+						size = image32.Size;
+					}
 					break;
 
 				default:
@@ -275,7 +292,7 @@ namespace HalfMaid.Img.FileFormats.Png
 			{
 				// This image is stored interlaced.  We need to make 7 passes over the data, decoding
 				// 7 successive images of smaller sizes into the data buffers at the correct positions.
-				if (!DecodeInterlaced(image!, image8!, rawImageData, header))
+				if (!DecodeInterlaced(image32!, image24!, image8!, rawImageData, header))
 					return null;
 			}
 			else
@@ -283,12 +300,12 @@ namespace HalfMaid.Img.FileFormats.Png
 				// Decode the one-and-only data pass.
 				int interlaceOffset = 0;
 				if (DecodeOnePass(header.FilterMethod, rawImageData, header.Width, header.Height,
-					image!, image8!, header.ColorType, header.BitDepth, interlaceOffset, 1, header.Width) < 0)
+					image32!, image24!, image8!, header.ColorType, header.BitDepth, interlaceOffset, 1, header.Width) < 0)
 					return null;
 			}
 
 			return new ImageLoadResult(colorFormat, size,
-				(image as IImage) ?? (image8 as IImage), metadata);
+				(image32 as IImage) ?? (image24 as IImage) ?? (image8 as IImage), metadata);
 		}
 
 		private Dictionary<string, object> DecodeMetadata(PngIhdrChunk header,
@@ -387,7 +404,7 @@ namespace HalfMaid.Img.FileFormats.Png
 			new PngInterlacingInfo(xOffset: 0, yOffset: 1, widthShift: 0, heightShift: 1),
 		};
 
-		private bool DecodeInterlaced(Image32 image, Image8 image8, Span<byte> rawImageData,
+		private bool DecodeInterlaced(Image32 image32, Image24 image24, Image8 image8, Span<byte> rawImageData,
 			PngIhdrChunk header)
 		{
 			for (int pass = 0; pass < 7; pass++)
@@ -405,7 +422,7 @@ namespace HalfMaid.Img.FileFormats.Png
 				// Decode the pixels associated with this pass into the correct
 				// positions in the image data.
 				int bytesConsumed = DecodeOnePass(header.FilterMethod, rawImageData, width, height,
-					image, image8, header.ColorType, header.BitDepth, interlaceOffset,
+					image32, image24, image8, header.ColorType, header.BitDepth, interlaceOffset,
 					passInfo.ColSpan, passInfo.RowSpan * header.Width);
 				if (bytesConsumed < 0)
 					return false;
@@ -417,7 +434,7 @@ namespace HalfMaid.Img.FileFormats.Png
 		}
 
 		private int DecodeOnePass(PngFilterMethod filterMethod, Span<byte> rawImageData, int width, int height,
-			Image32 image, Image8 image8, PngColorType colorType, int bitDepth, int interlaceOffset, int colSpan, int rowSpan)
+			Image32 image32, Image24 image24, Image8 image8, PngColorType colorType, int bitDepth, int interlaceOffset, int colSpan, int rowSpan)
 		{
 			// Unapply the image filter to the raw byte data, if there is an image filter applied.
 			// The result of this will be a new byte array that is completely unfiltered (raw image pixels).
@@ -433,20 +450,28 @@ namespace HalfMaid.Img.FileFormats.Png
 						width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
 
 				case PngColorType.Rgb:
-					return LoadPngRgb(image!.Data.AsSpan().Slice(interlaceOffset),
-						width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
+					if (image32 != null)
+						return LoadPngRgbAsImage32(image32!.Data.AsSpan().Slice(interlaceOffset),
+							width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
+					else
+						return LoadPngRgb(image24!.Data.AsSpan().Slice(interlaceOffset),
+							width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
 
 				case PngColorType.Paletted:
 					return LoadPng8Bit(image8!.Data.AsSpan().Slice(interlaceOffset),
 						width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
 
 				case PngColorType.GrayscaleAlpha:
-					return LoadPngGrayscaleAlpha(image!.Data.AsSpan().Slice(interlaceOffset),
+					return LoadPngGrayscaleAlpha(image32!.Data.AsSpan().Slice(interlaceOffset),
 						width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
 
 				case PngColorType.Rgba:
-					return LoadPngRgba(image!.Data.AsSpan().Slice(interlaceOffset),
-						width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
+					if (image24 != null)
+						return LoadPngRgbaAsImage24(image24!.Data.AsSpan().Slice(interlaceOffset),
+							width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
+					else
+						return LoadPngRgba(image32!.Data.AsSpan().Slice(interlaceOffset),
+							width, height, rawImageData, bitDepth, colSpan, rowSpan) >= 0 ? result : -1;
 
 				default:
 					throw new PngDecodeException($"Unsupported PNG color type: {(int)colorType}");
@@ -464,7 +489,63 @@ namespace HalfMaid.Img.FileFormats.Png
 		/// <param name="colStep">How many pixels to move forward for each column.</param>
 		/// <param name="rowStep">How many pixels to move down for each row.</param>
 		/// <returns>The number of bytes consumed in the provided rawImageData (-1 means failure).</returns>
-		private static unsafe int LoadPngRgb(Span<Color32> data, int width, int height,
+		private static unsafe int LoadPngRgb(Span<Color24> data, int width, int height,
+			ReadOnlySpan<byte> rawImageData, int bitDepth, int colStep, int rowStep)
+		{
+			if (bitDepth == 8)
+			{
+				// 3 bytes per pixel, in order of R,G,B.
+				if (rawImageData.Length < width * height * 3)
+					return -1;
+				fixed (Color24* destBase = data)
+				fixed (byte* srcBase = rawImageData)
+				{
+					Color24* destRow = destBase;
+					byte* src = srcBase;
+					for (int y = 0; y < height; y++, destRow += rowStep)
+					{
+						Color24* dest = destRow;
+						for (int x = 0; x < width; x++, src += 3, dest += colStep)
+							*dest = new Color24(src[0], src[1], src[2]);
+					}
+					return (int)(src - srcBase);
+				}
+			}
+			else if (bitDepth == 16)
+			{
+				// 6 bytes per pixel, in order of R,R,G,G,B,B.
+				if (rawImageData.Length < width * height * 6)
+					return -1;
+				fixed (Color24* destBase = data)
+				fixed (byte* srcBase = rawImageData)
+				{
+					Color24* destRow = destBase;
+					byte* src = srcBase;
+					for (int y = 0; y < height; y++, destRow += rowStep)
+					{
+						Color24* dest = destRow;
+						for (int x = 0; x < width; x++, src += 6, dest += colStep)
+							*dest = new Color24(src[0], src[2], src[4]);
+					}
+					return (int)(src - srcBase);
+				}
+			}
+			else return -1;
+		}
+
+		/// <summary>
+		/// Load an RGB-form PNG image, either 48 bits or 24 bits, into the given color buffer,
+		/// adding a default opaque alpha channel.
+		/// </summary>
+		/// <param name="data">The color buffer to write to.</param>
+		/// <param name="width">The width of the image to decode.</param>
+		/// <param name="height">The height of the image to decode.</param>
+		/// <param name="rawImageData">The raw image data to read from.</param>
+		/// <param name="bitDepth">The PNG bit depth value.</param>
+		/// <param name="colStep">How many pixels to move forward for each column.</param>
+		/// <param name="rowStep">How many pixels to move down for each row.</param>
+		/// <returns>The number of bytes consumed in the provided rawImageData (-1 means failure).</returns>
+		private static unsafe int LoadPngRgbAsImage32(Span<Color32> data, int width, int height,
 			ReadOnlySpan<byte> rawImageData, int bitDepth, int colStep, int rowStep)
 		{
 			if (bitDepth == 8)
@@ -556,6 +637,62 @@ namespace HalfMaid.Img.FileFormats.Png
 						Color32* dest = destRow;
 						for (int x = 0; x < width; x++, src += 8, dest += colStep)
 							*dest = new Color32(src[0], src[2], src[4], src[6]);
+					}
+					return (int)(src - srcBase);
+				}
+			}
+			else return -1;
+		}
+
+		/// <summary>
+		/// Load an RGBA-form PNG image, either 64 bits or 32 bits, into the given
+		/// 24-bit color buffer, discarding the alpha channel.
+		/// </summary>
+		/// <param name="data">The color buffer to write to.</param>
+		/// <param name="width">The width of the image to decode.</param>
+		/// <param name="height">The height of the image to decode.</param>
+		/// <param name="rawImageData">The raw image data to read from.</param>
+		/// <param name="bitDepth">The PNG bit depth value.</param>
+		/// <param name="colStep">How many pixels to move forward for each column.</param>
+		/// <param name="rowStep">How many pixels to move down for each row.</param>
+		/// <returns>The number of bytes consumed in the provided rawImageData (-1 means failure).</returns>
+		private static unsafe int LoadPngRgbaAsImage24(Span<Color24> data, int width, int height,
+			ReadOnlySpan<byte> rawImageData, int bitDepth, int colStep, int rowStep)
+		{
+			if (bitDepth == 8)
+			{
+				// 4 bytes per pixel, in order of R,G,B,A.
+				if (rawImageData.Length < width * height * 4)
+					return -1;
+				fixed (Color24* destBase = data)
+				fixed (byte* srcBase = rawImageData)
+				{
+					Color24* destRow = destBase;
+					byte* src = srcBase;
+					for (int y = 0; y < height; y++, destRow += rowStep)
+					{
+						Color24* dest = destRow;
+						for (int x = 0; x < width; x++, src += 4, dest += colStep)
+							*dest = new Color24(src[0], src[1], src[2]);
+					}
+					return (int)(src - srcBase);
+				}
+			}
+			else if (bitDepth == 16)
+			{
+				// 8 bytes per pixel, in order of R,R,G,G,B,B,A,A.
+				if (rawImageData.Length < width * height * 8)
+					return -1;
+				fixed (Color24* destBase = data)
+				fixed (byte* srcBase = rawImageData)
+				{
+					Color24* destRow = destBase;
+					byte* src = srcBase;
+					for (int y = 0; y < height; y++, destRow += rowStep)
+					{
+						Color24* dest = destRow;
+						for (int x = 0; x < width; x++, src += 8, dest += colStep)
+							*dest = new Color24(src[0], src[2], src[4]);
 					}
 					return (int)(src - srcBase);
 				}

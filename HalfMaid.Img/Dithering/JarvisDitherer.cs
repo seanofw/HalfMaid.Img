@@ -24,5 +24,7 @@
 
 		public override Image8 Dither(Image32 image)
 			=> DitherWithDivisor(image, _jarvis, JarvisDivisor);
+		public override Image8 Dither(Image24 image)
+			=> DitherWithDivisor(image, _jarvis, JarvisDivisor);
 	}
 }

@@ -99,7 +99,7 @@ namespace HalfMaid.Img.FileFormats.Targa
 		}
 
 		/// <inheritdoc />
-		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data)
+		public ImageLoadResult? LoadImage(ReadOnlySpan<byte> data, PreferredImageType preferredImageType)
 		{
 			if (data.Length < HeaderSize)
 				return null;
@@ -133,7 +133,9 @@ namespace HalfMaid.Img.FileFormats.Targa
 			else if (header[0].ImageType == TargaImageType.Grayscale)
 				result = DecodeGrayscale(data, header[0], comment);
 			else if (header[0].ImageType == TargaImageType.Truecolor)
-				result = DecodeTruecolor(data, header[0], comment);
+				result = preferredImageType == PreferredImageType.Image24
+					? DecodeTruecolor24(data, header[0], comment)
+					: DecodeTruecolor32(data, header[0], comment);
 
 			if (result == null)
 				return null;
@@ -145,6 +147,8 @@ namespace HalfMaid.Img.FileFormats.Targa
 			{
 				if (result.Image is Image32 image32)
 					image32.FlipVert();
+				else if (result.Image is Image32 image24)
+					image24.FlipVert();
 				else if (result.Image is Image8 image8)
 					image8.FlipVert();
 			}
@@ -153,6 +157,8 @@ namespace HalfMaid.Img.FileFormats.Targa
 			{
 				if (result.Image is Image32 image32)
 					image32.FlipHorz();
+				else if (result.Image is Image24 image24)
+					image24.FlipHorz();
 				else if (result.Image is Image8 image8)
 					image8.FlipHorz();
 			}
@@ -164,7 +170,7 @@ namespace HalfMaid.Img.FileFormats.Targa
 		private static byte FiveToEight(byte value)
 			=> (byte)((value << 3) | (value >> 2));
 
-		private static ImageLoadResult? DecodeTruecolor(ReadOnlySpan<byte> data, in TargaHeader header, string? comment)
+		private static ImageLoadResult? DecodeTruecolor32(ReadOnlySpan<byte> data, in TargaHeader header, string? comment)
 		{
 			data = data.Slice(HeaderSize + header.IdLength);
 
@@ -250,6 +256,100 @@ namespace HalfMaid.Img.FileFormats.Targa
 							dest[3] = src[3];
 							src += 4;
 							dest += 4;
+						}
+					}
+				}
+			}
+			else return null;
+
+			return new ImageLoadResult(format, image.Size, image,
+				metadata: comment != null ? new Dictionary<string, object> { { "comment", comment } } : null);
+		}
+
+		private static ImageLoadResult? DecodeTruecolor24(ReadOnlySpan<byte> data, in TargaHeader header, string? comment)
+		{
+			data = data.Slice(HeaderSize + header.IdLength);
+
+			ImageFileColorFormat format;
+			Image24 image = new Image24(header.Width.LE(), header.Height.LE());
+			Span<Color24> destData = image.Data;
+
+			if (header.BitsPerPixel == 15)
+			{
+				// 15-bit RGB, in the form of "xRRRRRGG GGGBBBBB" (little-endian).
+				format = ImageFileColorFormat.Rgb24Bit;
+				ReadOnlySpan<ushort> words = MemoryMarshal.Cast<byte, ushort>(data);
+				if (words.Length < destData.Length)
+					return null;
+				for (int i = 0; i < destData.Length; i++)
+				{
+					ushort value = words[i].LE();
+					destData[i] = new Color24(FiveToEight((byte)(value >> 10)),
+						FiveToEight((byte)(value >> 5)), FiveToEight((byte)value));
+				}
+			}
+			else if (header.BitsPerPixel == 16)
+			{
+				// 16-bit RGB, in the form of "ARRRRRGG GGGBBBBB" (little-endian).
+				format = ImageFileColorFormat.Rgba32Bit;
+				ReadOnlySpan<ushort> words = MemoryMarshal.Cast<byte, ushort>(data);
+				if (words.Length < destData.Length)
+					return null;
+				for (int i = 0; i < destData.Length; i++)
+				{
+					ushort value = words[i].LE();
+					destData[i] = new Color24(FiveToEight((byte)(value >> 10)),
+						FiveToEight((byte)(value >> 5)), FiveToEight((byte)value));
+				}
+				return new ImageLoadResult(ImageFileColorFormat.Rgb24Bit, image.Size, image,
+					metadata: comment != null ? new Dictionary<string, object> { { "comment", comment } } : null);
+			}
+			else if (header.BitsPerPixel == 24)
+			{
+				// 24-bit RGB, in B, G, R order.
+				format = ImageFileColorFormat.Rgb24Bit;
+				if (data.Length < destData.Length * 3)
+					return null;
+				unsafe
+				{
+					fixed (Color24* destBase = destData)
+					fixed (byte* srcBase = data)
+					{
+						byte* src = srcBase;
+						byte* dest = (byte*)destBase;
+						int length = destData.Length;
+						for (int i = 0; i < length; i++)
+						{
+							dest[2] = src[0];
+							dest[1] = src[1];
+							dest[0] = src[2];
+							src += 3;
+							dest += 3;
+						}
+					}
+				}
+			}
+			else if (header.BitsPerPixel == 32)
+			{
+				// 32-bit RGB, in B, G, R, A order.
+				format = ImageFileColorFormat.Rgba32Bit;
+				if (data.Length < destData.Length * 4)
+					return null;
+				unsafe
+				{
+					fixed (Color24* destBase = destData)
+					fixed (byte* srcBase = data)
+					{
+						byte* src = srcBase;
+						byte* dest = (byte*)destBase;
+						int length = destData.Length;
+						for (int i = 0; i < length; i++)
+						{
+							dest[2] = src[0];
+							dest[1] = src[1];
+							dest[0] = src[2];
+							src += 4;
+							dest += 3;
 						}
 					}
 				}

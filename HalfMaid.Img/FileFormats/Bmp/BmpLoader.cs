@@ -91,7 +91,7 @@ namespace HalfMaid.Img.FileFormats.Bmp
 		}
 
 		/// <inheritdoc />
-		public unsafe ImageLoadResult? LoadImage(ReadOnlySpan<byte> data)
+		public unsafe ImageLoadResult? LoadImage(ReadOnlySpan<byte> data, PreferredImageType preferredImageType)
 		{
 			fixed (byte* dataBase = data)
 			{
@@ -172,12 +172,12 @@ namespace HalfMaid.Img.FileFormats.Bmp
 				{
 					// Bitfield mode.  There's no palette.  Instead, we have bit-shifting
 					// fun in various modes.
-					return DecodeByBitfields(infoHeader, imgData, palData, length, metadata);
+					return DecodeByBitfields(infoHeader, imgData, palData, length, metadata, preferredImageType);
 				}
 				else
 				{
 					// Simple uncompressed truecolor.
-					return DecodeTruecolor(infoHeader, imgData, length, metadata);
+					return DecodeTruecolor(infoHeader, imgData, length, metadata, preferredImageType);
 				}
 			}
 		}
@@ -230,12 +230,13 @@ namespace HalfMaid.Img.FileFormats.Bmp
 		}
 
 		private static unsafe ImageLoadResult? DecodeByBitfields(in BitmapInfoHeader infoHeader,
-			byte* imgData, byte* palData, int length, Dictionary<string, object> metadata)
+			byte* imgData, byte* palData, int length, Dictionary<string, object> metadata,
+			PreferredImageType preferredImageType)
 		{
 			if ((imgData - palData) < 16)
 				return null;
 
-			Image32 result = new Image32(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+			IImage result;
 			ImageFileColorFormat colorFormat;
 
 			// Get the bitmasks that describe where the colors can be found.
@@ -280,8 +281,20 @@ namespace HalfMaid.Img.FileFormats.Bmp
 				colorFormat = ImageFileColorFormat.Rgb24Bit;
 				metadata[ImageMetadataKey.NumChannels] = 3;
 				metadata[ImageMetadataKey.BitsPerChannel] = 8;
-				if (!Decode24BitMasked(result, imgData, length, offsets))
-					return null;
+				if (preferredImageType == PreferredImageType.Image32)
+				{
+					Image32 image = new Image32(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode24BitTo32BitMasked(image, imgData, length, offsets))
+						return null;
+					result = image;
+				}
+				else
+				{
+					Image24 image = new Image24(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode24BitMasked(image, imgData, length, offsets))
+						return null;
+					result = image;
+				}
 			}
 			else if (infoHeader.biBitCount.LE() == 32)
 			{
@@ -291,8 +304,20 @@ namespace HalfMaid.Img.FileFormats.Bmp
 				colorFormat = ImageFileColorFormat.Rgba32Bit;
 				metadata[ImageMetadataKey.NumChannels] = 4;
 				metadata[ImageMetadataKey.BitsPerChannel] = 8;
-				if (!Decode32BitMasked(result, imgData, length, offsets))
-					return null;
+				if (preferredImageType == PreferredImageType.Image24)
+				{
+					Image24 image = new Image24(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode32BitTo24BitMasked(image, imgData, length, offsets))
+						return null;
+					result = image;
+				}
+				else
+				{
+					Image32 image = new Image32(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode32BitMasked(image, imgData, length, offsets))
+						return null;
+					result = image;
+				}
 			}
 			else return null;
 
@@ -301,9 +326,10 @@ namespace HalfMaid.Img.FileFormats.Bmp
 		}
 
 		private static unsafe ImageLoadResult? DecodeTruecolor(in BitmapInfoHeader infoHeader,
-			byte* imgData, int length, Dictionary<string, object> metadata)
+			byte* imgData, int length, Dictionary<string, object> metadata,
+			PreferredImageType preferredImageType)
 		{
-			Image32 result = new Image32(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+			IImage result;
 			ImageFileColorFormat colorFormat;
 
 			if (infoHeader.biBitCount.LE() == 24)
@@ -312,8 +338,20 @@ namespace HalfMaid.Img.FileFormats.Bmp
 				colorFormat = ImageFileColorFormat.Rgb24Bit;
 				metadata[ImageMetadataKey.NumChannels] = 3;
 				metadata[ImageMetadataKey.BitsPerChannel] = 8;
-				if (!Decode24Bit(result, imgData, length))
-					return null;
+				if (preferredImageType == PreferredImageType.Image32)
+				{
+					Image32 image = new Image32(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode24BitTo32Bit(image, imgData, length))
+						return null;
+					result = image;
+				}
+				else
+				{
+					Image24 image = new Image24(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode24Bit(image, imgData, length))
+						return null;
+					result = image;
+				}
 			}
 			else if (infoHeader.biBitCount.LE() == 32)
 			{
@@ -321,8 +359,20 @@ namespace HalfMaid.Img.FileFormats.Bmp
 				colorFormat = ImageFileColorFormat.Rgba32Bit;
 				metadata[ImageMetadataKey.NumChannels] = 4;
 				metadata[ImageMetadataKey.BitsPerChannel] = 8;
-				if (!Decode32Bit(result, imgData, length))
-					return null;
+				if (preferredImageType == PreferredImageType.Image24)
+				{
+					Image24 image = new Image24(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode32BitTo24Bit(image, imgData, length))
+						return null;
+					result = image;
+				}
+				else
+				{
+					Image32 image = new Image32(infoHeader.biWidth.LE(), infoHeader.biHeight.LE());
+					if (!Decode32Bit(image, imgData, length))
+						return null;
+					result = image;
+				}
 			}
 			else return null;
 
@@ -354,6 +404,8 @@ namespace HalfMaid.Img.FileFormats.Bmp
 
 			return palette;
 		}
+
+		#region Low bit counts (1-8 bits)
 
 		private static unsafe bool Decode1Bit(Image8 result, byte* imgData, int length)
 		{
@@ -464,7 +516,43 @@ namespace HalfMaid.Img.FileFormats.Bmp
 			return true;
 		}
 
-		private static unsafe bool Decode24Bit(Image32 result, byte* imgData, int length)
+		#endregion
+
+		#region 24-bit and 32-bit truecolor
+
+		private static unsafe bool Decode24Bit(Image24 result, byte* imgData, int length)
+		{
+			// Calculate the number of bytes per source row.  Each row must
+			// pad to an even 4 bytes.
+			int rowStride = (result.Width * 3 + 3) & ~3;
+
+			// Make sure there's enough source data.
+			if (length < rowStride * result.Height)
+				return false;
+
+			fixed (Color24* destBase = result.Data)
+			{
+				// Windows bitmaps are stored upside-down, because of old OS/2 decisions :(
+				for (int y = result.Height - 1; y >= 0; y--)
+				{
+					byte* src = imgData;
+					Color24* dest = destBase + y * result.Width;
+
+					for (int x = 0; x < result.Width; x++)
+					{
+						// The colors are stored in BGR order, so we have to flip them.
+						*dest++ = new Color24(src[2], src[1], src[0]);
+						src += 3;
+					}
+
+					imgData += rowStride;
+				}
+			}
+
+			return true;
+		}
+
+		private static unsafe bool Decode24BitTo32Bit(Image32 result, byte* imgData, int length)
 		{
 			// Calculate the number of bytes per source row.  Each row must
 			// pad to an even 4 bytes.
@@ -486,41 +574,6 @@ namespace HalfMaid.Img.FileFormats.Bmp
 					{
 						// The colors are stored in BGR order, so we have to flip them.
 						*dest++ = new Color32(src[2], src[1], src[0]);
-						src += 3;
-					}
-
-					imgData += rowStride;
-				}
-			}
-
-			return true;
-		}
-
-		private static unsafe bool Decode24BitMasked(Image32 result, byte* imgData, int length, int* offsets)
-		{
-			// Calculate the number of bytes per source row.  Each row must
-			// pad to an even 4 bytes.
-			int rowStride = (result.Width * 3 + 3) & ~3;
-
-			// Make sure there's enough source data.
-			if (length < rowStride * result.Height)
-				return false;
-
-			int r = offsets[0];
-			int g = offsets[1];
-			int b = offsets[2];
-
-			fixed (Color32* destBase = result.Data)
-			{
-				// Windows bitmaps are stored upside-down, because of old OS/2 decisions :(
-				for (int y = result.Height - 1; y >= 0; y--)
-				{
-					byte* src = imgData;
-					Color32* dest = destBase + y * result.Width;
-
-					for (int x = 0; x < result.Width; x++)
-					{
-						*dest++ = new Color32(src[r], src[g], src[b]);
 						src += 3;
 					}
 
@@ -553,6 +606,111 @@ namespace HalfMaid.Img.FileFormats.Bmp
 						// The colors are stored in BGRA order, so we have to flip them.
 						*dest++ = new Color32(src[2], src[1], src[0], src[3]);
 						src += 4;
+					}
+
+					imgData += rowStride;
+				}
+			}
+
+			return true;
+		}
+
+		private static unsafe bool Decode32BitTo24Bit(Image24 result, byte* imgData, int length)
+		{
+			// Calculate the number of bytes per source row.
+			int rowStride = result.Width * 4;
+
+			// Make sure there's enough source data.
+			if (length < rowStride * result.Height)
+				return false;
+
+			fixed (Color24* destBase = result.Data)
+			{
+				// Windows bitmaps are stored upside-down, because of old OS/2 decisions :(
+				for (int y = result.Height - 1; y >= 0; y--)
+				{
+					byte* src = imgData;
+					Color24* dest = destBase + y * result.Width;
+
+					for (int x = 0; x < result.Width; x++)
+					{
+						// The colors are stored in BGRA order, so we have to flip them.
+						*dest++ = new Color24(src[2], src[1], src[0]);
+						src += 4;
+					}
+
+					imgData += rowStride;
+				}
+			}
+
+			return true;
+		}
+
+		#endregion
+
+		#region 24-bit and 32-bit bitmask-based formats
+
+		private static unsafe bool Decode24BitMasked(Image24 result, byte* imgData, int length, int* offsets)
+		{
+			// Calculate the number of bytes per source row.  Each row must
+			// pad to an even 4 bytes.
+			int rowStride = (result.Width * 3 + 3) & ~3;
+
+			// Make sure there's enough source data.
+			if (length < rowStride * result.Height)
+				return false;
+
+			int r = offsets[0];
+			int g = offsets[1];
+			int b = offsets[2];
+
+			fixed (Color24* destBase = result.Data)
+			{
+				// Windows bitmaps are stored upside-down, because of old OS/2 decisions :(
+				for (int y = result.Height - 1; y >= 0; y--)
+				{
+					byte* src = imgData;
+					Color24* dest = destBase + y * result.Width;
+
+					for (int x = 0; x < result.Width; x++)
+					{
+						*dest++ = new Color24(src[r], src[g], src[b]);
+						src += 3;
+					}
+
+					imgData += rowStride;
+				}
+			}
+
+			return true;
+		}
+
+		private static unsafe bool Decode24BitTo32BitMasked(Image32 result, byte* imgData, int length, int* offsets)
+		{
+			// Calculate the number of bytes per source row.  Each row must
+			// pad to an even 4 bytes.
+			int rowStride = (result.Width * 3 + 3) & ~3;
+
+			// Make sure there's enough source data.
+			if (length < rowStride * result.Height)
+				return false;
+
+			int r = offsets[0];
+			int g = offsets[1];
+			int b = offsets[2];
+
+			fixed (Color32* destBase = result.Data)
+			{
+				// Windows bitmaps are stored upside-down, because of old OS/2 decisions :(
+				for (int y = result.Height - 1; y >= 0; y--)
+				{
+					byte* src = imgData;
+					Color32* dest = destBase + y * result.Width;
+
+					for (int x = 0; x < result.Width; x++)
+					{
+						*dest++ = new Color32(src[r], src[g], src[b]);
+						src += 3;
 					}
 
 					imgData += rowStride;
@@ -596,5 +754,41 @@ namespace HalfMaid.Img.FileFormats.Bmp
 
 			return true;
 		}
+
+		private static unsafe bool Decode32BitTo24BitMasked(Image24 result, byte* imgData, int length, int* offsets)
+		{
+			// Calculate the number of bytes per source row.
+			int rowStride = result.Width * 4;
+
+			// Make sure there's enough source data.
+			if (length < rowStride * result.Height)
+				return false;
+
+			int r = offsets[0];
+			int g = offsets[1];
+			int b = offsets[2];
+
+			fixed (Color24* destBase = result.Data)
+			{
+				// Windows bitmaps are stored upside-down, because of old OS/2 decisions :(
+				for (int y = result.Height - 1; y >= 0; y--)
+				{
+					byte* src = imgData;
+					Color24* dest = destBase + y * result.Width;
+
+					for (int x = 0; x < result.Width; x++)
+					{
+						*dest++ = new Color24(src[r], src[g], src[b]);
+						src += 4;
+					}
+
+					imgData += rowStride;
+				}
+			}
+
+			return true;
+		}
+
+		#endregion
 	}
 }
