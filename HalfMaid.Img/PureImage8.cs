@@ -607,6 +607,7 @@ namespace HalfMaid.Img
 		/// <param name="width">The width of the rectangle of pixels to copy.</param>
 		/// <param name="height">The height of the rectangle of pixels to copy.</param>
 		/// <param name="blitFlags">Flags that control how the blit operation is performed.</param>
+		/// <param name="color">The "color" to use for color blit modes.</param>
 		/// <returns>A new image, with part of it replaced by 'srcImage'.</returns>
 		/// <remarks>
 		/// This Blit() does *not* perform the update in-place, and is typically slower than Image8.Blit()
@@ -615,10 +616,10 @@ namespace HalfMaid.Img
 		/// </remarks>
 		[Pure]
 		public PureImage8 Blit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
-			BlitFlags blitFlags = default)
+			BlitFlags blitFlags = default, byte color = default)
 		{
 			Image8 copy = _image.Clone();
-			copy.Blit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags);
+			copy.Blit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
 			return copy;
 		}
 

@@ -131,9 +131,32 @@ namespace HalfMaid.Img
 		WhiteAlphaPM = 15,
 
 		/// <summary>
+		/// Copy or write pixels, but scale each source channel to the given color range before writing it.
+		/// </summary>
+		Color = 16,
+
+		/// <summary>
+		/// Copy or write pixels, but scale each source channel to the given color range before writing it,
+		/// and apply simple transparency mode (0 = transparent, all others are opaque).
+		/// </summary>
+		ColorTransparent = 17,
+
+		/// <summary>
+		/// Copy or write pixels, but scale each source channel to the given color range before writing it,
+		/// and apply alpha.
+		/// </summary>
+		ColorAlpha = 18,
+
+		/// <summary>
+		/// Copy or write pixels, but scale each source channel to the given color range before writing it,
+		/// and apply alpha.
+		/// </summary>
+		ColorAlphaPM = 19,
+
+		/// <summary>
 		/// Number of last defined mode.
 		/// </summary>
-		LastMode = 15,
+		LastMode = 19,
 
 		/// <summary>
 		/// This is the mask for the "mode" portion of the BlitFlags.  All bits outside

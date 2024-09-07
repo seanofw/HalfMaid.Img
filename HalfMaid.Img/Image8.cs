@@ -1044,8 +1044,9 @@ namespace HalfMaid.Img
 		/// <param name="width">The width of the rectangle of pixels to copy.</param>
 		/// <param name="height">The height of the rectangle of pixels to copy.</param>
 		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
+		/// <param name="color">The "color" to use for color blit modes.</param>
 		public void Blit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
-			BlitFlags blitFlags = default)
+			BlitFlags blitFlags = default, byte color = default)
 		{
 			if ((blitFlags & BlitFlags.FastUnsafe) == 0)
 			{
@@ -1067,7 +1068,7 @@ namespace HalfMaid.Img
 			}
 
 			// General case:  Every other blit type.
-			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags);
+			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
 		}
 
 		/// <summary>
@@ -1248,7 +1249,6 @@ namespace HalfMaid.Img
 			}
 		}
 
-
 		/// <summary>
 		/// Fast, unsafe copy from src image rectangle to dest image rectangle, combining
 		/// color values in the source and destination together using a bitwise mode.
@@ -1257,7 +1257,8 @@ namespace HalfMaid.Img
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, BlitFlags blitFlags)
+		private void FastUnsafeBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY,
+			int width, int height, BlitFlags blitFlags, byte color)
 		{
 			if (width <= 0 || height <= 0)
 				return;     // Basic safety check. Should never be needed, but...
@@ -1372,6 +1373,20 @@ namespace HalfMaid.Img
 							case (int)BlitFlags.WhiteAlphaPM:
 								for (; src != end; src += srcStep, dest += destStep)
 									*dest = 255;
+								break;
+							case (int)BlitFlags.Color:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = (byte)Color32.Div255(*src * color + 128);
+								break;
+							case (int)BlitFlags.ColorTransparent:
+							case (int)BlitFlags.ColorAlpha:
+							case (int)BlitFlags.ColorAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+								{
+									byte c = (byte)Color32.Div255(*src * color + 128);
+									if (c != 0)
+										*dest = c;
+								}
 								break;
 						}
 

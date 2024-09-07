@@ -521,6 +521,25 @@ namespace HalfMaid.Img
 			=> Unpremultiply(R, G, B, A);
 
 		/// <summary>
+		/// Multiply each channel of this color by the same channel of the other color,
+		/// then divide by 255 (with proper rounding).
+		/// </summary>
+		/// <param name="other">The other color to scale this color.</param>
+		/// <returns>The new, scaled color.</returns>
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+#else
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+		public Color32 Scale(Color32 other)
+			=> new Color32(
+				(byte)(Div255(R * other.R + 128)),
+				(byte)(Div255(G * other.G + 128)),
+				(byte)(Div255(B * other.B + 128)),
+				(byte)(Div255(A * other.A + 128))
+			);
+
+		/// <summary>
 		/// Divide the given value by 255, faster than '/' can divide on most CPUs.
 		/// </summary>
 #if NETCOREAPP

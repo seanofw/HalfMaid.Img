@@ -683,6 +683,7 @@ namespace HalfMaid.Img
 		/// <param name="width">The width of the rectangle of pixels to copy.</param>
 		/// <param name="height">The height of the rectangle of pixels to copy.</param>
 		/// <param name="blitFlags">Flags controlling how the blit operation is performed.</param>
+		/// <param name="color">The color to use for color blit modes.</param>
 		/// <returns>A new image, with part of it replaced by 'srcImage'.</returns>
 		/// <remarks>
 		/// This Blit() does *not* perform the update in-place, and is typically slower than Image32.Blit()
@@ -691,10 +692,10 @@ namespace HalfMaid.Img
 		/// </remarks>
 		[Pure]
 		public PureImage32 Blit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
-			BlitFlags blitFlags = default)
+			BlitFlags blitFlags = default, Color32 color = default)
 		{
 			Image32 copy = _image.Clone();
-			copy.Blit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags);
+			copy.Blit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
 			return copy;
 		}
 

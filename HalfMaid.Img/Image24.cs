@@ -1019,8 +1019,9 @@ namespace HalfMaid.Img
 		/// <param name="width">The width of the rectangle of pixels to copy.</param>
 		/// <param name="height">The height of the rectangle of pixels to copy.</param>
 		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
+		/// <param name="color">The color to use for color blit modes.</param>
 		public void Blit(Image24 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
-			BlitFlags blitFlags = default)
+			BlitFlags blitFlags = default, Color24 color = default)
 		{
 			if ((blitFlags & BlitFlags.FastUnsafe) == 0)
 			{
@@ -1042,7 +1043,7 @@ namespace HalfMaid.Img
 			}
 
 			// General case:  Every other blit type.
-			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags);
+			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
 		}
 
 		/// <summary>
@@ -1223,7 +1224,8 @@ namespace HalfMaid.Img
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlit(Image24 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, BlitFlags blitFlags)
+		private void FastUnsafeBlit(Image24 srcImage, int srcX, int srcY, int destX, int destY,
+			int width, int height, BlitFlags blitFlags, Color24 color)
 		{
 			if (width <= 0 || height <= 0)
 				return;     // Basic safety check. Should never be needed, but...
@@ -1334,6 +1336,13 @@ namespace HalfMaid.Img
 							case (int)BlitFlags.WhiteAlphaPM:
 								for (; src != end; src += srcStep, dest += destStep)
 									*dest = Color24.White;
+								break;
+							case (int)BlitFlags.Color:
+							case (int)BlitFlags.ColorTransparent:
+							case (int)BlitFlags.ColorAlpha:
+							case (int)BlitFlags.ColorAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = src->Scale(color);
 								break;
 						}
 

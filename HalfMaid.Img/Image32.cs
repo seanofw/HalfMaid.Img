@@ -1279,8 +1279,9 @@ namespace HalfMaid.Img
 		/// <param name="width">The width of the rectangle of pixels to copy.</param>
 		/// <param name="height">The height of the rectangle of pixels to copy.</param>
 		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
+		/// <param name="color">The color to use for color-blit modes.</param>
 		public void Blit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
-			BlitFlags blitFlags = default)
+			BlitFlags blitFlags = default, Color32 color = default)
 		{
 			if ((blitFlags & BlitFlags.FastUnsafe) == 0)
 			{
@@ -1302,7 +1303,7 @@ namespace HalfMaid.Img
 			}
 
 			// General case:  Every other blit type.
-			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags);
+			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
 		}
 
 		/// <summary>
@@ -1483,7 +1484,8 @@ namespace HalfMaid.Img
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, BlitFlags blitFlags)
+		private void FastUnsafeBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY,
+			int width, int height, BlitFlags blitFlags, Color32 color)
 		{
 			if (width <= 0 || height <= 0)
 				return;     // Basic safety check. Should never be needed, but...
@@ -1610,6 +1612,26 @@ namespace HalfMaid.Img
 							case (int)BlitFlags.WhiteAlphaPM:
 								for (; src != end; src += srcStep, dest += destStep)
 									*dest = Color32.WhiteOverPM(src->A, under: *dest);
+								break;
+							case (int)BlitFlags.Color:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = src->Scale(color);
+								break;
+							case (int)BlitFlags.ColorTransparent:
+								for (; src != end; src += srcStep, dest += destStep)
+								{
+									Color32 c = src->Scale(color);
+									if (c.A != 0)
+										*dest = c;
+								}
+								break;
+							case (int)BlitFlags.ColorAlpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.Over(over: src->Scale(color), under: *dest);
+								break;
+							case (int)BlitFlags.ColorAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.OverPM(over: src->Scale(color), under: *dest);
 								break;
 						}
 
