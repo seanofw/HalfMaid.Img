@@ -5570,11 +5570,11 @@ namespace HalfMaid.Img
 
 				for (int i = 0; i < kernelEnd; i++)
 				{
-					Color32 srcColor = srcColumn[(y + i - radius) * Width];
+					Color32 c = srcColumn[(y + i - radius) * Width];
 					float k = kernel[i];
-					r += srcColor.R * k;
-					g += srcColor.G * k;
-					b += srcColor.B * k;
+					r += c.R * k;
+					g += c.G * k;
+					b += c.B * k;
 					sum += k;
 				}
 
@@ -5746,7 +5746,7 @@ namespace HalfMaid.Img
 		/// <param name="sigma">The standard deviation of the Gaussian distribution.</param>
 		/// <returns>A double array representing the Gaussian kernel.</returns>
 		[Pure]
-		private static double[] CreateGaussianKernel(double radius, double sigma)
+		internal static double[] CreateGaussianKernel(double radius, double sigma)
 		{
 			const double Sqrt2Pi = 2.5066282746310005; 
 			
