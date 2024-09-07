@@ -6,10 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using OpenTK.Mathematics;
 using HalfMaid.Img.FileFormats;
-using System.Net.NetworkInformation;
 
 namespace HalfMaid.Img
 {
@@ -899,8 +897,8 @@ namespace HalfMaid.Img
 					newSavers.Remove(format);
 			}
 
-			Interlocked.Exchange(ref _loaders, newLoaders);
-			Interlocked.Exchange(ref _savers, newSavers);
+			System.Threading.Interlocked.Exchange(ref _loaders, newLoaders);
+			System.Threading.Interlocked.Exchange(ref _savers, newSavers);
 		}
 
 		/// <summary>
@@ -2572,10 +2570,7 @@ namespace HalfMaid.Img
 		public void AdjustRange(double newMin, double newRange)
 		{
 			Span<byte> lookup = stackalloc byte[256];
-
-			for (int i = 0; i < 256; i++)
-				lookup[i] = (byte)Math.Min(Math.Max(newMin + (i / 256.0) * newRange + 0.5, 0), 255);
-
+			MakeLookupTableFromRange(lookup, newMin, newRange);
 			RemapValues(lookup, lookup, lookup, lookup);
 		}
 
@@ -2604,15 +2599,49 @@ namespace HalfMaid.Img
 			Span<byte> blueLookup = stackalloc byte[256];
 			Span<byte> alphaLookup = stackalloc byte[256];
 
-			for (int i = 0; i < 256; i++)
-			{
-				redLookup[i] = (byte)Math.Min(Math.Max(redNewMin + (i / 256.0) * redRange + 0.5, 0), 255);
-				greenLookup[i] = (byte)Math.Min(Math.Max(greenNewMin + (i / 256.0) * greenRange + 0.5, 0), 255);
-				blueLookup[i] = (byte)Math.Min(Math.Max(blueNewMin + (i / 256.0) * blueRange + 0.5, 0), 255);
-				alphaLookup[i] = (byte)Math.Min(Math.Max(alphaNewMin + (i / 256.0) * alphaRange + 0.5, 0), 255);
-			}
+			MakeLookupTableFromRange(redLookup, redNewMin, redRange);
+			MakeLookupTableFromRange(greenLookup, greenNewMin, greenRange);
+			MakeLookupTableFromRange(blueLookup, blueNewMin, blueRange);
+			MakeLookupTableFromRange(alphaLookup, alphaNewMin, alphaRange);
 
 			RemapValues(redLookup, greenLookup, blueLookup, alphaLookup);
+		}
+
+		/// <summary>
+		/// Make a lookup table that maps all 256 values from 0 to 255 to the given
+		/// range.  This creates a single lookup table for a single channel.
+		/// </summary>
+		/// <param name="lookup">The lookup table to write to.  This must be 256 entries long.</param>
+		/// <param name="newMin">The value that 0 will map to.</param>
+		/// <param name="newRange">The size of the new range of values.</param>
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		internal static void MakeLookupTableFromRange(Span<byte> lookup, double newMin, double newRange)
+		{
+			if (lookup.Length != 256)
+				throw new ArgumentException("Lookup table must be 256 bytes long.");
+
+			// This is written so that (hopefully) the JIT can vectorize the math.
+			// On CPUs that support it, this should be able to be very parallel.
+			// At worst, even if it's not very parallel, it's at least unrolled.
+			//
+			// We calculate in doubles and clamp each value individually rather than
+			// using a faster technique like fancy integer math to ensure that every
+			// value is accurately calculated for all legal values of newMin and newRange,
+			// including near-infinite ranges, near-zero ranges, and negative ranges.
+
+			for (int i = 0; i < 256; i += 8)
+			{
+				lookup[i  ] = (byte)Math.Min(Math.Max(newMin +  i    * newRange * (1 / 256.0) + 0.5, 0), 255);
+				lookup[i+1] = (byte)Math.Min(Math.Max(newMin + (i+1) * newRange * (1 / 256.0) + 0.5, 0), 255);
+				lookup[i+2] = (byte)Math.Min(Math.Max(newMin + (i+2) * newRange * (1 / 256.0) + 0.5, 0), 255);
+				lookup[i+3] = (byte)Math.Min(Math.Max(newMin + (i+3) * newRange * (1 / 256.0) + 0.5, 0), 255);
+				lookup[i+4] = (byte)Math.Min(Math.Max(newMin + (i+4) * newRange * (1 / 256.0) + 0.5, 0), 255);
+				lookup[i+5] = (byte)Math.Min(Math.Max(newMin + (i+5) * newRange * (1 / 256.0) + 0.5, 0), 255);
+				lookup[i+6] = (byte)Math.Min(Math.Max(newMin + (i+6) * newRange * (1 / 256.0) + 0.5, 0), 255);
+				lookup[i+7] = (byte)Math.Min(Math.Max(newMin + (i+7) * newRange * (1 / 256.0) + 0.5, 0), 255);
+			}
 		}
 
 		/// <summary>
@@ -2698,6 +2727,20 @@ namespace HalfMaid.Img
 		/// well; values outside that range will be clamped to that range.</param>
 		public void ColorTemperature(double temperature)
 		{
+			(double red, double green, double blue) = RgbFromTemperature(temperature);
+			AdjustRange(0, red, 0, green, 0, blue, 0, 255);
+		}
+
+		/// <summary>
+		/// Calculate the maximum red, green, and blue values allowed for the given
+		/// color temperature.  Values below 6600 are reddish, and values above 6600 are bluish.
+		/// This uses Tanner Helland's color-temperature technique, which he describes at
+		/// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html .
+		/// </summary>
+		/// <param name="temperature"></param>
+		/// <returns></returns>
+		internal static (double Red, double Green, double Blue) RgbFromTemperature(double temperature)
+		{
 			// Ensure the temperature is within the supported range.
 			// Per Tanner's paper, temperatures outside the range of 1000
 			// to 40000 are unlikely to produce good results.
@@ -2707,35 +2750,20 @@ namespace HalfMaid.Img
 			double red = temperature <= 66 ? 255
 				: Math.Min(Math.Max(
 					329.698727446 * Math.Pow(temperature - 60, -0.1332047592),
-				0), 255);
+						0), 255);
 
 			double green = Math.Min(Math.Max((temperature <= 66
-					? 99.4708025861 * Math.Log(temperature) - 161.1195681661
+						? 99.4708025861 * Math.Log(temperature) - 161.1195681661
 					: 288.1221695283 * Math.Pow(temperature - 60, -0.0755148492)),
 				0), 255);
 
-			double blue =
-				  temperature >= 66 ? 255.0
+			double blue = temperature >= 66 ? 255.0
 				: temperature <= 19 ? 0.0
 				: Math.Min(Math.Max(
 					(138.5177312231 * Math.Log(temperature - 10) - 305.0447927307),
-				0), 255);
+						0), 255);
 
-			// Generate lookup tables, since each color channel can be adjusted independently.
-			Span<byte> redLookup = stackalloc byte[256];
-			Span<byte> greenLookup = stackalloc byte[256];
-			Span<byte> blueLookup = stackalloc byte[256];
-			Span<byte> alphaLookup = stackalloc byte[256];
-
-			for (int i = 0; i < 256; i++)
-			{
-				redLookup[i] = (byte)Math.Min(Math.Max(i * red * (1.0 / 255) + 0.5, 0), 255);
-				greenLookup[i] = (byte)Math.Min(Math.Max(i * green * (1.0 / 255) + 0.5, 0), 255);
-				blueLookup[i] = (byte)Math.Min(Math.Max(i * blue * (1.0 / 255) + 0.5, 0), 255);
-				alphaLookup[i] = (byte)i;
-			}
-
-			RemapValues(redLookup, greenLookup, blueLookup, alphaLookup);
+			return (red, green, blue);
 		}
 
 		#endregion

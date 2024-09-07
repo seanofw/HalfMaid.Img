@@ -6,9 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using OpenTK.Mathematics;
 using HalfMaid.Img.FileFormats;
+using OpenTK.Mathematics;
 
 namespace HalfMaid.Img
 {
@@ -2192,10 +2191,7 @@ namespace HalfMaid.Img
 		public void AdjustRange(double newMin, double newRange)
 		{
 			Span<byte> lookup = stackalloc byte[256];
-
-			for (int i = 0; i < 256; i++)
-				lookup[i] = (byte)Math.Min(Math.Max(newMin + (i / 256.0) * newRange + 0.5, 0), 255);
-
+			Image32.MakeLookupTableFromRange(lookup, newMin, newRange);
 			RemapValues(lookup, lookup, lookup);
 		}
 
@@ -2220,12 +2216,9 @@ namespace HalfMaid.Img
 			Span<byte> greenLookup = stackalloc byte[256];
 			Span<byte> blueLookup = stackalloc byte[256];
 
-			for (int i = 0; i < 256; i++)
-			{
-				redLookup[i] = (byte)Math.Min(Math.Max(redNewMin + (i / 256.0) * redRange + 0.5, 0), 255);
-				greenLookup[i] = (byte)Math.Min(Math.Max(greenNewMin + (i / 256.0) * greenRange + 0.5, 0), 255);
-				blueLookup[i] = (byte)Math.Min(Math.Max(blueNewMin + (i / 256.0) * blueRange + 0.5, 0), 255);
-			}
+			Image32.MakeLookupTableFromRange(redLookup, redNewMin, redRange);
+			Image32.MakeLookupTableFromRange(greenLookup, greenNewMin, greenRange);
+			Image32.MakeLookupTableFromRange(blueLookup, blueNewMin, blueRange);
 
 			RemapValues(redLookup, greenLookup, blueLookup);
 		}
@@ -2306,44 +2299,10 @@ namespace HalfMaid.Img
 		/// <param name="temperature">The desired color temperature in Kelvin.  6600 effectively
 		/// leaves the image as-is.  Values from 1000 to 40000 are likely to work reasonably
 		/// well; values outside that range will be clamped to that range.</param>
-		public void AdjustColorTemperature(double temperature)
+		public void ColorTemperature(double temperature)
 		{
-			// Ensure the temperature is within the supported range.
-			// Per Tanner's paper, temperatures outside the range of 1000
-			// to 40000 are unlikely to produce good results.
-			temperature = Math.Min(Math.Max(temperature, 1000), 40000) * 0.01;
-
-			// Calculate adjustment values, from 0 to 255.
-			double red = temperature <= 66 ? 255
-				: Math.Min(Math.Max(
-					329.698727446 * Math.Pow(temperature - 60, -0.1332047592),
-				0), 255);
-
-			double green = Math.Min(Math.Max((temperature <= 66
-					? 99.4708025861 * Math.Log(temperature) - 161.1195681661
-					: 288.1221695283 * Math.Pow(temperature - 60, -0.0755148492)),
-				0), 255);
-
-			double blue =
-				  temperature >= 66 ? 1.0
-				: temperature <= 19 ? 0.0
-				: Math.Min(Math.Max(
-					(138.5177312231 * Math.Log(temperature - 10) - 305.0447927307),
-				0), 255);
-
-			// Generate lookup tables, since each color channel can be adjusted independently.
-			Span<byte> redLookup = stackalloc byte[256];
-			Span<byte> greenLookup = stackalloc byte[256];
-			Span<byte> blueLookup = stackalloc byte[256];
-
-			for (int i = 0; i < 256; i++)
-			{
-				redLookup[i] = (byte)Math.Min(Math.Max(i * red, 0), 255);
-				greenLookup[i] = (byte)Math.Min(Math.Max(i * green, 0), 255);
-				blueLookup[i] = (byte)Math.Min(Math.Max(i * blue, 0), 255);
-			}
-
-			RemapValues(redLookup, greenLookup, blueLookup);
+			(double red, double green, double blue) = Image32.RgbFromTemperature(temperature);
+			AdjustRange(0, red, 0, green, 0, blue);
 		}
 
 		#endregion

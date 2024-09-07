@@ -1089,6 +1089,102 @@ namespace HalfMaid.Img
 			return copy;
 		}
 
+		/// <summary>
+		/// Adjust the brightness and contrast of the palette (R, G, and B channels).
+		/// </summary>
+		/// <param name="brightness">The brightness adjustment, on a scale
+		/// of -1.0 = all black, 0.0 = no change, and +1.0 = all white.</param>
+		/// <param name="contrast">The contrast adjustment on a scale of -1.0 = featureless gray,
+		/// 0.0 = no change, and +1.0 = maximum contrast (pure black and pure white).</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage8 BrightnessContrast(double brightness, double contrast)
+		{
+			Image8 copy = _image.Clone();
+			copy.BrightnessContrast(brightness, contrast);
+			return copy;
+		}
+
+		/// <summary>
+		/// Adjust the brightness range of the palette to the given values.  This "stretches"
+		/// the existing values of each channel to match the provided new range.  If passed
+		/// 0 and 256, no changes will be made to the palette.  The provided parameters may
+		/// be outside the normal range of 0 and 256:  Brightness adjustments will be clamped
+		/// to the allowed endpoints.
+		/// </summary>
+		/// <param name="newMin">The new minimum value.</param>
+		/// <param name="newRange">The new range, from that minimum.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage8 AdjustRange(double newMin, double newRange)
+		{
+			Image8 copy = _image.Clone();
+			copy.AdjustRange(newMin, newRange);
+			return copy;
+		}
+
+		/// <summary>
+		/// Adjust the brightness range of the palette to the given values.  This "stretches"
+		/// the existing values of each channel to match the provided new range.  If passed
+		/// 0 and 256, no changes will be made to the palette.  The provided parameters may
+		/// be outside the normal range of 0 and 256:  Brightness adjustments will be clamped
+		/// to the allowed endpoints.
+		/// </summary>
+		/// <param name="redNewMin">The new minimum value for the red channel.</param>
+		/// <param name="redRange">The new range, from that minimum, for the red channel.</param>
+		/// <param name="greenNewMin">The new minimum value for the green channel.</param>
+		/// <param name="greenRange">The new range, from that minimum, for the green channel.</param>
+		/// <param name="blueNewMin">The new minimum value for the blue channel.</param>
+		/// <param name="blueRange">The new range, from that minimum, for the blue channel.</param>
+		/// <param name="alphaNewMin">The new minimum value for the alpha channel.</param>
+		/// <param name="alphaRange">The new range, from that minimum, for the alpha channel.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage8 AdjustRange(double redNewMin, double redRange,
+			double greenNewMin, double greenRange,
+			double blueNewMin, double blueRange,
+			double alphaNewMin, double alphaRange)
+		{
+			Image8 copy = _image.Clone();
+			copy.AdjustRange(redNewMin, redRange, greenNewMin, greenRange,
+				blueNewMin, blueRange, alphaNewMin, alphaRange);
+			return copy;
+		}
+
+		/// <summary>
+		/// Perform a fast remapping of the colors in the palette via the given four
+		/// lookup tables, one table per channel.
+		/// </summary>
+		/// <param name="redLookup">A lookup table for the red channel, which must have at least 256 entries.</param>
+		/// <param name="greenLookup">A lookup table for the green channel, which must have at least 256 entries.</param>
+		/// <param name="blueLookup">A lookup table for the blue channel, which must have at least 256 entries.</param>
+		/// <param name="alphaLookup">A lookup table for the alpha channel, which must have at least 256 entries.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		[Pure]
+		public PureImage8 RemapValues(ReadOnlySpan<byte> redLookup, ReadOnlySpan<byte> greenLookup,
+			ReadOnlySpan<byte> blueLookup, ReadOnlySpan<byte> alphaLookup)
+		{
+			Image8 copy = _image.Clone();
+			copy.RemapValues(redLookup, greenLookup, blueLookup, alphaLookup);
+			return copy;
+		}
+
+		/// <summary>
+		/// Adjust the color temperature of the palette.  This uses
+		/// Tanner Helland's color-temperature technique, which he describes at
+		/// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html .
+		/// </summary>
+		/// <param name="temperature">The desired color temperature in Kelvin.  6600 effectively
+		/// leaves the image as-is.  Values from 1000 to 40000 are likely to work reasonably
+		/// well; values outside that range will be clamped to that range.</param>
+		/// <returns>A copy of this image, with the color adjustments applied.</returns>
+		public PureImage8 ColorTemperature(double temperature)
+		{
+			Image8 copy = _image.Clone();
+			copy.ColorTemperature(temperature);
+			return copy;
+		}
+
 		#endregion
 
 		#region Channel extraction/combining

@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Xml.Linq;
 using HalfMaid.Img.FileFormats;
 using OpenTK.Mathematics;
 
@@ -2416,10 +2414,7 @@ namespace HalfMaid.Img
 		public void AdjustRange(double newMin, double newRange)
 		{
 			Span<byte> lookup = stackalloc byte[256];
-
-			for (int i = 0; i < 256; i++)
-				lookup[i] = (byte)Math.Min(Math.Max(newMin + (i / 256.0) * newRange + 0.5, 0), 255);
-
+			Image32.MakeLookupTableFromRange(lookup, newMin, newRange);
 			RemapValues(lookup, lookup, lookup, lookup);
 		}
 
@@ -2448,13 +2443,10 @@ namespace HalfMaid.Img
 			Span<byte> blueLookup = stackalloc byte[256];
 			Span<byte> alphaLookup = stackalloc byte[256];
 
-			for (int i = 0; i < 256; i++)
-			{
-				redLookup[i] = (byte)Math.Min(Math.Max(redNewMin + (i / 256.0) * redRange + 0.5, 0), 255);
-				greenLookup[i] = (byte)Math.Min(Math.Max(greenNewMin + (i / 256.0) * greenRange + 0.5, 0), 255);
-				blueLookup[i] = (byte)Math.Min(Math.Max(blueNewMin + (i / 256.0) * blueRange + 0.5, 0), 255);
-				alphaLookup[i] = (byte)Math.Min(Math.Max(alphaNewMin + (i / 256.0) * alphaRange + 0.5, 0), 255);
-			}
+			Image32.MakeLookupTableFromRange(redLookup, redNewMin, redRange);
+			Image32.MakeLookupTableFromRange(greenLookup, greenNewMin, greenRange);
+			Image32.MakeLookupTableFromRange(blueLookup, blueNewMin, blueRange);
+			Image32.MakeLookupTableFromRange(alphaLookup, alphaNewMin, alphaRange);
 
 			RemapValues(redLookup, greenLookup, blueLookup, alphaLookup);
 		}
@@ -2533,50 +2525,17 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
-		/// Adjust the color temperature of the image, in-place.  This uses
+		/// Adjust the color temperature of the palette, in-place.  This uses
 		/// Tanner Helland's color-temperature technique, which he describes at
 		/// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html .
 		/// </summary>
 		/// <param name="temperature">The desired color temperature in Kelvin.  6600 effectively
-		/// leaves the image as-is.  Values from 1000 to 40000 are likely to work reasonably
+		/// leaves the palette as-is.  Values from 1000 to 40000 are likely to work reasonably
 		/// well; values outside that range will be clamped to that range.</param>
-		public void AdjustColorTemperature(double temperature)
+		public void ColorTemperature(double temperature)
 		{
-			// Ensure the temperature is within the supported range.
-			// Per Tanner's paper, temperatures outside the range of 1000
-			// to 40000 are unlikely to produce good results.
-			temperature = Math.Min(Math.Max(temperature, 1000), 40000) * 0.01;
-
-			// Calculate adjustment values, from 0 to 255.
-			double red = temperature <= 66 ? 255
-				: Math.Min(Math.Max(
-					329.698727446 * Math.Pow(temperature - 60, -0.1332047592),
-				0), 255);
-
-			double green = Math.Min(Math.Max((temperature <= 66
-					? 99.4708025861 * Math.Log(temperature) - 161.1195681661
-					: 288.1221695283 * Math.Pow(temperature - 60, -0.0755148492)),
-				0), 255);
-
-			double blue =
-				  temperature >= 66 ? 1.0
-				: temperature <= 19 ? 0.0
-				: Math.Min(Math.Max(
-					(138.5177312231 * Math.Log(temperature - 10) - 305.0447927307),
-				0), 255);
-
-			// Update the palette directly (creating lookup tables and then applying
-			// them would be slower).
-			Color32[] palette = Palette;
-			for (int i = 0; i < palette.Length; i++)
-			{
-				Color32 c = palette[i];
-				palette[i] = new Color32(
-					(byte)Math.Min(Math.Max(c.R * red, 0), 255),
-					(byte)Math.Min(Math.Max(c.G * green, 0), 255),
-					(byte)Math.Min(Math.Max(c.B * blue, 0), 255),
-					c.A);
-			}
+			(double red, double green, double blue) = Image32.RgbFromTemperature(temperature);
+			AdjustRange(0, red, 0, green, 0, blue, 0, 255);
 		}
 
 		#endregion
