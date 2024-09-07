@@ -133,6 +133,8 @@ These are the classes you're going to work with a lot in this library:
     \
     It also has dozens and dozens of methods for manipulating its pixels, and it has sensible operator overloads, and it has `Load()` and `Save()` methods for getting data in and out of it.  You can `Blit()` and `Resample()` and `Draw()` and `Crop()` and so many more, all as methods right on the class itself.
 
+* **Image24**.  This is a `class`, and it has an `int Width`, an `int Height`, and a `Color24[] Data`.  The pixel data is arranged top-to-bottom, left-to-right. This is just like `Image32`, but without the alpha channel.
+
 * **Image8**.  This is a `class`, and it has an `int Width`, an `int Height`, a `byte[] Data`, and a `Color32[] Palette`.  The pixel data is arranged top-to-bottom, left-to-right. \
     \
     Just like `Image32`, this has dozens and dozens of methods for manipulating its pixels, and sensible operator overloads, and `Load()` and `Save()` and all the rest.
@@ -143,13 +145,15 @@ Are you working in F#?  Or do you just really like immutable data structures?  W
 
 * **PureImage32**.  This is like `Image32`, and it has nearly the same operations (and it uses `Image32` under the hood to do the heavy lifting!), but every method in it is declared `[Pure]` and has rational, immutable semantics:  Image + image = new image.  Seriously.  Even when a method doesn't really make a lot of sense to be implemented in a pure, rational form, it's implemented that way:  `myPureImage.DrawLine()` really will give you a copy of the image with a new line drawn on it.
 
+* **PureImage24**.  Like `Image24`, but the pure, immutable version.
+
 * **PureImage8**.  Like `Image8`, but the pure, immutable version.
 
 ### Other classes
 
 There are *lots* more classes in this library.  Here are a few others that might be worth knowing about:
 
-* **IImage**.  This is an interface shared by both `Image32` and `Image8` so that you can have a single shape to describe both of them.  It doesn't have a *lot* of methods on it, but it includes enough that you can do the basics in a uniform way.
+* **IImage**.  This is an interface shared by both `Image32`, `Image24`, and `Image8` so that you can have a single shape to describe all of them.
 
 * **IImageLoader**/**IImageSaver**.  These interfaces describe classes that know how to load or save image files in a specific file format.
 
@@ -171,184 +175,188 @@ Note that constructors are documented separately below:  Each class includes sev
 
 | Name  | Availability | Summary |
 | ----- |------------- | ------- |
-| `Size` property | 32, 8, P32, P8 | The size of the image, represented as a 2D vector. |
-| `Pure` property | 32, 8 | Wrap this image in a `Pure*` struct. |
-| static `Empty` property | 32, 8, P32, P8 | A static image of size (0, 0). |
+| `Size` property | 32, 24, 8, P32, P24, P8 | The size of the image, represented as a 2D vector. |
+| `Pure` property | 32, 24, 8 | Wrap this image in a `Pure*` struct. |
+| static `Empty` property | 32, 24, 8, P32, P24, P8 | A static image of size (0, 0). |
 
 ### Whole-image operations
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `GetBytes()` | 32, 8, P32, P8 | Clone a copy of this image data, as a raw byte array. |
-| `Replace()` | 32, 8 | Overwrite this image with an exact copy of another image. |
+| `GetBytes()` | 32, 24, 8, P32, P24, P8 | Clone a copy of this image data, as a raw byte array. |
+| `Replace()` | 32, 24, 8 | Overwrite this image with an exact copy of another image. |
 | `ReplacePalette()` | 8 | Replace this image's palette with a copy of the given palette data. |
-| `Overwrite()` | 32, 8 | Overwrite this image's data with a copy of the provided data. |
-| `Overwrite()` | 32, 8 | Overwrite this image's data with a copy of the provided data. |
-| `Clone()` | 32, 8, P32, P8 | Make a perfect duplicate of this image. |
-| `ToImage32()` | 32, 8, P32, P8 | Convert this to a 32-bit RGBA image. |
-| `ToImage8()` | 32, P32 | Convert this to an 8-bit paletted image, using the given palette and dithering algorithm. |
+| `Overwrite()` | 32, 24, 8 | Overwrite this image's data with a copy of the provided data. |
+| `Overwrite()` | 32, 24, 8 | Overwrite this image's data with a copy of the provided data. |
+| `Clone()` | 32, 24, 8, P32, P24, P8 | Make a perfect duplicate of this image. |
+| `ToImage32()` | 32, 24, 8, P32, P24, P8 | Convert this to a 32-bit RGBA image. |
+| `ToImage24()` | 32, 24, 8, P32, P24, P8 | Convert this to a 24-bit RGB image. |
+| `ToImage8()` | 32, 24, 8, P32, P24, P8 | Convert this to an 8-bit paletted image, using the given palette and dithering algorithm. |
 
 ### Loading and saving
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `SaveFile()` | 32, 8, P32, P8 | Save an image to a file, or to a byte array. |
-| static `LoadFile()` | 32, 8, P32, P8 | Load an image from a file, an embedded resource, or a byte array. |
-| static `LoadFileMetadata()` | 32, 8, P32, P8 | Load just the color format and width/height (fast). |
-| static `GuessFileFormat()` | 32, 8, P32, P8 | Best-guess analysis for the image file format, based on name _and_ data. |
-| static `RegisterFileFormat()` | 32, 8, P32, P8 | Include support for an additional image file format. |
+| `SaveFile()` | 32, 24, 8, P32, P24, P8 | Save an image to a file, or to a byte array. |
+| static `LoadFile()` | 32, 24, 8, P32, P24, P8 | Load an image from a file, an embedded resource, or a byte array. |
+| static `LoadFileMetadata()` | 32, 24, 8, P32, P24, P8 | Load just the color format and width/height (fast). |
+| static `GuessFileFormat()` | 32, 24, 8, P32, P24, P8 | Best-guess analysis for the image file format, based on name _and_ data. |
+| static `RegisterFileFormat()` | 32, 24, 8, P32, P24, P8 | Include support for an additional image file format. |
 | static `RegisterFileFormats()` | 32 | Include support for _many_ additional image file formats. |
 | static `GetRegisteredLoaderFormats()` | 32 | Get the list of all image formats that can be loaded. |
 | static `GetRegisteredSaverFormats()` | 32 | Get the list of all image formats that can be saved. |
-| static `GetLoader()` | 32, 8, P32, P8 | Get the registered loader class for a specific image format. |
-| static `GetSaver()` | 32, 8, P32, P8 | Get the registered saver class for a specific image format. |
+| static `GetLoader()` | 32, 24, 8, P32, P24, P8 | Get the registered loader class for a specific image format. |
+| static `GetSaver()` | 32, 24, 8, P32, P24, P8 | Get the registered saver class for a specific image format. |
 
 ### Resizing and resampling
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `Resize()` | 32, 8, P32, P8 | Resize an image fast using nearest-neighbor sampling. |
-| `ResizeToFit()` | 32, 8, P32, P8 | Resize to fit inside the given container, maintaining aspect ratio. |
-| `Resample()` | 32, P32 | Resize an image using a resampling filter like bilinear or B-spline or Lanczos. |
-| `ResampleToFit()` | 32, P32 | Resample to fit inside the given container, maintaining aspect ratio. |
-| static `Fit()` | 32, 8, P32, P8 | Calculate best-fit inside a given container, maintaining aspect ratio. |
+| `Resize()` | 32, 24, 8, P32, P24, P8 | Resize an image fast using nearest-neighbor sampling. |
+| `ResizeToFit()` | 32, 24, 8, P32, P24, P8 | Resize to fit inside the given container, maintaining aspect ratio. |
+| `Resample()` | 32, 24, P32, P24 | Resize an image using a resampling filter like bilinear or B-spline or Lanczos. |
+| `ResampleToFit()` | 32, 24, P32, P24 | Resample to fit inside the given container, maintaining aspect ratio. |
+| static `Fit()` | 32, 24, 8, P32, P24, P8 | Calculate best-fit inside a given container, maintaining aspect ratio. |
 
 ### Blitting and cropping
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| static `ClipBlit()` | 32, 8, P32, P8 | Clip a blit operation to be within the given bounds of the image. |
-| static `ClipRect()` | 32, 8, P32, P8 | Clip the given drawing rectangle to be within the image. |
-| `Crop()` | 32, 8, P32, P8 | Crop this image to the given rectangle (in place). |
-| `Extract()` | 32, 8, P32, P8 | Crop this image to the given rectangle (non-destructive). |
-| `Pad()` | 32, 8, P32, P8 | Pad the boundary of the image with extra pixels of a given color. |
-| `Blit()` | 32, 8, P32, P8 | Copy a rectangle from source to destination, in one of several modes. (See [blit flags](#flags-and-options) below.) |
-| `PatternBlit()` | 32, 8, P32, P8 | Copy from source to destination, repeating source to fill destination. |
-| `ShadowBlit()` | 32 | Copy from source to destination, but copy all colors as black (with the same alpha). |
+| static `ClipBlit()` | 32, 24, 8, P32, P24, P8 | Clip a blit operation to be within the given bounds of the image. |
+| static `ClipRect()` | 32, 24, 8, P32, P24, P8 | Clip the given drawing rectangle to be within the image. |
+| `Crop()` | 32, 24, 8, P32, P24, P8 | Crop this image to the given rectangle (in place). |
+| `Extract()` | 32, 24, 8, P32, P24, P8 | Crop this image to the given rectangle (non-destructive). |
+| `Pad()` | 32, 24, 8, P32, P24, P8 | Pad the boundary of the image with extra pixels of a given color. |
+| `Blit()` | 32, 24, 8, P32, P24, P8 | Copy a rectangle from source to destination, in one of several modes. (See [blit flags](#flags-and-options) below.) |
+| `PatternBlit()` | 32, 24, 8, P32, P24, P8 | Copy from source to destination, repeating source to fill destination. |
 
 ### Orientation transformations
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `FlipVert()` | 32, 8, P32, P8 | Flip the image vertically. |
-| `FlipHorz()` | 32, 8, P32, P8 | Flip the image horizontally. |
-| `Rotate90()` | 32, 8, P32, P8 | Rotate the image 90 degrees clockwise. |
-| `Rotate90CCW()` | 32, 8, P32, P8 | Rotate the image 90 degrees counterclockwise. |
-| `Rotate180()` | 32, 8, P32, P8 | Rotate the image 180 degrees. |
+| `FlipVert()` | 32, 24, 8, P32, P24, P8 | Flip the image vertically. |
+| `FlipHorz()` | 32, 24, 8, P32, P24, P8 | Flip the image horizontally. |
+| `Rotate90()` | 32, 24, 8, P32, P24, P8 | Rotate the image 90 degrees clockwise. |
+| `Rotate90CCW()` | 32, 24, 8, P32, P24, P8 | Rotate the image 90 degrees counterclockwise. |
+| `Rotate180()` | 32, 24, 8, P32, P24, P8 | Rotate the image 180 degrees. |
 
 ### Color transformations
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `Mix()` | 32, 8, P32, P8 | Blend this image with another, using the given percentage to describe how much of each. |
-| `Multiply()` | 32, P32 | Multiply every pixel component in the image by a scalar value. |
+| `Mix()` | 32, 24, 8, P32, P24, P8 | Blend this image with another, using the given percentage to describe how much of each. |
+| `Multiply()` | 32, 24, P32, P24 | Multiply every pixel component in the image by a scalar value. |
 | `MultiplyPalette()` | 8, P8 | Multiply every color component in the palette by a scalar value. |
 | `PremultiplyAlpha()` | 32, 8, P32, P8 | Premultiply the alpha component to the red, green, and blue channels. |
-| `RemapColor()` | 32, P32 | Replace exact instances of the given color(s) with another. |
+| `RemapColor()` | 32, 24, P32, P24 | Replace exact instances of the given color(s) with another. |
 | `RemapColor()` | 8, P8 | Replace exact instances of the given pixel value(s) with another. |
-| `RemapColor(matrix)` | 32, P32 | Treat each pixel as a vector, and apply a matrix transform to it. |
+| `RemapColor(matrix)` | 32, 24, P32, P24 | Treat each pixel as a vector, and apply a matrix transform to it. |
 | `RemapPalette()` | 8, P8 | Replace the given palette entry(s) with another. |
 | `RemapPalette(matrix)` | 8, P8 | Treat each palette entry as a vector, and apply a matrix transform to it. |
-| `ExtractChannel()` | 32, 8, P32, P8 | Extract out the given color channel as a new `Image8`. |
+| `ExtractChannel()` | 32, 24, 8, P32, P24, P8 | Extract out the given color channel as a new `Image8`. |
 | static `CombineChannels()` | 32, P32 | Combine separate `Image8`s representing R, G, B, and A as a new `Image32`. |
-| `SwapChannels()` | 32, 8, P32, P8 | Exchange the R, G, B or A color channels with each other. |
+| static `CombineChannels()` | 24, P24 | Combine separate `Image8`s representing R, G, and B as a new `Image24`. |
+| `SwapChannels()` | 32, 24, 8, P32, P24, P8 | Exchange the R, G, B or A color channels with each other. |
 
 ### Color filters & effects
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `Gamma()` | 32, 8, P32, P8 | Apply gamma to the image (or palette). |
-| `Grayscale()` | 32, 8, P32, P8 | Convert the image (or palette) to grayscale, optionally using weighting. |
-| `Grayscale8()` | 32, P32 | Convert the image to grayscale, optionally using weighting, and return an `Image8`. |
-| `Desaturate()` | 32, 8, P32, P8 | Partially desaturate the image (or palette) toward grayscale. |
-| `Sepia()` | 32, 8, P32, P8 | Remap the image to a sepia-toned image. |
-| `HueSaturationLightness()` | 32, 8, P32, P8 | Adjust hue, saturation, and lightness of the image (or palette). |
-| `HueSaturationBrightness()` | 32, 8, P32, P8 | Adjust hue, saturation, and brightness of the image (or palette). |
-| `ToGrayscale256()` | 32, 8, P32, P8 | Convert the image to use the standard `Grayscale256` palette. |
+| `Silhouette()` | 32, P32 | Convert image to a silhouette by replacing colors but keeping alpha. |
+| `SilhouettePM()` | 32, P32 | Convert image to a silhouette, using premultiplied alpha. |
+| `Gamma()` | 32, 24, 8, P32, P24, P8 | Apply gamma to the image (or palette). |
+| `Grayscale()` | 32, 24, 8, P32, P24, P8 | Convert the image (or palette) to grayscale, optionally using weighting. |
+| `Grayscale8()` | 32, 24, P32, P24 | Convert the image to grayscale, optionally using weighting, and return an `Image8`. |
+| `Desaturate()` | 32, 24, 8, P32, P4, P8 | Partially desaturate the image (or palette) toward grayscale. |
+| `Sepia()` | 32, 24, 8, P32, P24, P8 | Remap the image to a sepia-toned image. |
+| `HueSaturationLightness()` | 32, 24, 8, P32, P24, P8 | Adjust hue, saturation, and lightness of the image (or palette). |
+| `HueSaturationBrightness()` | 32, 24, 8, P32, P24, P8 | Adjust hue, saturation, and brightness of the image (or palette). |
+| `ToGrayscale256()` | 32, 24, 8, P32, P24, P8 | Convert the image to use the standard `Grayscale256` palette. |
 | `Invert()` | 8, P8 | Replace each pixel value `v` with `255-v`. |
-| `Invert()` | 32, P32 | Replace one or more of the red, green, and blue channels `v` with `255-v`. |
+| `Invert()` | 32, 24, P32, P24 | Replace one or more of the red, green, and blue channels `v` with `255-v`. |
 | `InvertPalette()` | 8, P8 | In the palette, replace one or more of the red, green, and blue channels `v` with `255-v`. |
 
 ### Color analysis and dithering
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `Quantize()` | 32, P32 | Use a Heckbert median-cut to calculate an ideal palette. |
-| `Histogram()` | 32, P32 | Generate a count each color used in the image. |
-| static `GetDitherer()` | 32 | Retrieve an implementation of a specific dithering algorithm, by enum. |
-| `ToImage8()` | 32, P32 | Convert this to an 8-bit paletted image, using the given palette and dithering algorithm. |
+| `Quantize()` | 32, 24, P32, P24 | Use Heckbert's median-cut to calculate an ideal palette. |
+| `Histogram()` | 32, 24, P32, P24 | Generate a count each color used in the image. |
+| static `GetDitherer()` | 32, 24 | Retrieve an implementation of a specific dithering algorithm, by enum. |
+| `ToImage8()` | 32, 24, P32, P24 | Convert this to an 8-bit paletted image, using the given palette and dithering algorithm. |
 
 ### Drawing operations
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `this[x, y]` | 32, 8, P32*, P8* | Read or write the pixel at the given coordinate. |
-| `DrawRect()` | 32, 8, P32, P8 | Draw a rectangular border with the given color. |
-| `DrawLine()` | 32, 8, P32, P8 | Draw a line in the given color. |
-| `DrawThickLine()` | 32, 8, P32, P8 | Draw a "thick" line (filled rectangular polygon) in the given color. |
-| `DrawBezier()` | 32, 8, P32, P8 | Draw a Bézier curve in the given color. |
-| `Fill()` | 32, 8, P32, P8 | Fill the entire image quickly with the given color. |
-| `FillRect()` | 32, 8, P32, P8 | Fill a rectangular area with the given color. |
-| `FillGradientRect()` | 32, P32 | Fill a rectangular area with the given color gradient. |
-| `FillPolygon()` | 32, 8, P32, P8 | Fill an arbitrary polygon with the given color. |
+| `this[x, y]` | 32, 24, 8, P32*, P24*, P8* | Read or write the pixel at the given coordinate. |
+| `DrawRect()` | 32, 24, 8, P32, P24, P8 | Draw a rectangular border with the given color. |
+| `DrawLine()` | 32, 24, 8, P32, P24, P8 | Draw a line in the given color. |
+| `DrawThickLine()` | 32, 24, 8, P32, P24, P8 | Draw a "thick" line (filled rectangular polygon) in the given color. |
+| `DrawBezier()` | 32, 24, 8, P32, P24, P8 | Draw a Bézier curve in the given color. |
+| `Fill()` | 32, 24, 8, P32, P24, P8 | Fill the entire image quickly with the given color. |
+| `FillRect()` | 32, 24, 8, P32, P24, P8 | Fill a rectangular area with the given color. |
+| `FillGradientRect()` | 32, 24, P32, P24 | Fill a rectangular area with the given color gradient. |
+| `FillPolygon()` | 32, 24, 8, P32, P24, P8 | Fill an arbitrary polygon with the given color. |
 
 ### Image convolutions / Effects
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `Emboss()` | 32, P32 | Apply a 3x3 emboss convolution kernel. |
-| `Sharpen()` | 32, P32 | Apply a 3x3 sharpen convolution kernel. |
-| `EdgeDetect()` | 32, P32 | Apply a 3x3 sharpen edge-detection kernel. |
-| `BoxBlur()` | 32, P32 | Apply a 3x3 box-blur convolution kernel. |
-| `ApproximateGaussianBlurFast()` | 32, P32 | Apply a 3x3 approximate Gaussian blur. |
-| `Convolve3x3()` | 32, P32 | Apply a custom 3x3 convolution kernel (highly optimized case). |
-| `ConvolveHorz()` | 32, P32 | Apply a custom Nx1 convolution kernel. |
-| `ConvolveVert()` | 32, P32 | Apply a custom 1xN convolution kernel. |
-| `Convolve()` | 32, P32 | Apply an arbitrary custom MxN convolution kernel. |
+| `Emboss()` | 32, 24, P32, P24 | Apply a 3x3 emboss convolution kernel. |
+| `Sharpen()` | 32, 24, P32, P24 | Apply a 3x3 sharpen convolution kernel. |
+| `EdgeDetect()` | 32, 24, P32, P24 | Apply a 3x3 sharpen edge-detection kernel. |
+| `BoxBlur()` | 32, 24, P32, P24 | Apply a 3x3 box-blur convolution kernel. |
+| `GaussianBlur()` | 32, 24, P32, P24 | Apply a true Gaussian-blur convolution kernel. |
+| `RoundBlur()` | 32, 24, P32, P24 | Apply a 3x3 approximate Gaussian blur. |
+| `Convolve3x3()` | 32, 24, P32, P24 | Apply a custom 3x3 convolution kernel (highly optimized case). |
+| `ConvolveHorz()` | 32, 24, P32, P24 | Apply a custom Nx1 convolution kernel. |
+| `ConvolveVert()` | 32, 24, P32, P24 | Apply a custom 1xN convolution kernel. |
+| `Convolve()` | 32, 24, P32, P24 | Apply an arbitrary custom MxN convolution kernel. |
 
 ### Pixel transparency tests
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `MeasureContentWidth()` | 32, 8, P32, P8 | Measure width by searching for nontransparent pixels. |
-| `MeasureContentHeight()` | 32, 8, P32, P8 | Measure height by searching for nontransparent pixels. |
-| `IsRectTransparent()` | 32, 8, P32, P8 | Determine whether the given area is transparent. |
-| `IsRowTransparent()` | 32, 8, P32, P8 | Determine whether the row of pixels is transparent. |
-| `IsColumnTransparent()` | 32, 8, P32, P8 | Determine whether the column of pixels is transparent. |
+| `MeasureContentWidth()` | 32, 24, 8, P32, P24, P8 | Measure width by searching for nontransparent pixels. |
+| `MeasureContentHeight()` | 32, 24, 8, P32, P24, P8 | Measure height by searching for nontransparent pixels. |
+| `IsRectTransparent()` | 32, 24, 8, P32, P24, P8 | Determine whether the given area is transparent. |
+| `IsRowTransparent()` | 32, 24, 8, P32, P24, P8 | Determine whether the row of pixels is transparent. |
+| `IsColumnTransparent()` | 32, 24, 8, P32, P24, P8 | Determine whether the column of pixels is transparent. |
 
 ### Color tests
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `IsGrayscale()` | 32, 8, P32, P8 | Determine if every color's R = G = B. |
+| `IsGrayscale()` | 32, 24, 8, P32, P24, P8 | Determine if every color's R = G = B. |
 | `IsGrayscale256()` | 8, P8 | Determine if this uses the `Grayscale256` palette. |
-| `IsSingleChannel()` | 32, 8, P32, P8 | Determine if this is a single-channel image, and if so, which color channel. |
+| `IsSingleChannel()` | 32, 24, 8, P32, P24, P8 | Determine if this is a single-channel image, and if so, which color channel. |
 
 ### Operators
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `operator +()` | 32, 8, P32, P8 | Add two images, componentwise per pixel. |
-| `operator -()` | 32, 8, P32, P8 | Subtract two images, componentwise per pixel. |
-| `operator *()` | 32, 8, P32, P8 | Multiply two images, componentwise per pixel. |
-| `operator *(scalar)` | 32, 8, P32, P8 | Multiply this image by a scalar, componentwise per pixel. |
-| `operator /(scalar)` | 32, 8, P32, P8 | Divide this image by a scalar, componentwise per pixel. |
-| `operator `&#124;`()` | 32, 8, P32, P8 | Bitwise-or of two images, componentwise per pixel. |
-| `operator &()` | 32, 8, P32, P8 | Bitwise-and of two images, componentwise per pixel. |
-| `operator ^()` | 32, 8, P32, P8 | Bitwise-exclusive-or of two images, componentwise per pixel. |
-| `operator <<(c)` | 32, 8, P32, P8 | Bitwise left shift, componentwise per pixel, by the given bit count `c`. |
-| `operator >>(c)` | 32, 8, P32, P8 | Bitwise right shift, componentwise per pixel, by the given bit count `c`. |
-| unary `operator ~()` | 32, 8, P32, P8 | Same as calling `Invert()`, replacing each `v` with `255-v`. |
-| unary `operator -()` | 32, 8, P32, P8 | Replacing each color component `v` with `(256-v) % 256`. |
-| `operator ==()` | 32, 8, P32, P8 | Deep equality test: True if size, pixels, and palette entries are identical. |
-| `operator !=()` | 32, 8, P32, P8 | Deep equality test: False if size, pixels, and palette entries are identical. |
+| `operator +()` | 32, 24, 8, P32, P24, P8 | Add two images, componentwise per pixel. |
+| `operator -()` | 32, 24, 8, P32, P24, P8 | Subtract two images, componentwise per pixel. |
+| `operator *()` | 32, 24, 8, P32, P24, P8 | Multiply two images, componentwise per pixel. |
+| `operator *(scalar)` | 32, 24, 8, P32, P24, P8 | Multiply this image by a scalar, componentwise per pixel. |
+| `operator /(scalar)` | 32, 24, 8, P32, P24, P8 | Divide this image by a scalar, componentwise per pixel. |
+| `operator `&#124;`()` | 32, 24, 8, P32, P24, P8 | Bitwise-or of two images, componentwise per pixel. |
+| `operator &()` | 32, 24, 8, P32, P24, P8 | Bitwise-and of two images, componentwise per pixel. |
+| `operator ^()` | 32, 24, 8, P32, P24, P8 | Bitwise-exclusive-or of two images, componentwise per pixel. |
+| `operator <<(c)` | 32, 24, 8, P32, P24, P8 | Bitwise left shift, componentwise per pixel, by the given bit count `c`. |
+| `operator >>(c)` | 32, 24, 8, P32, P24, P8 | Bitwise right shift, componentwise per pixel, by the given bit count `c`. |
+| unary `operator ~()` | 32, 24, 8, P32, P24, P8 | Same as calling `Invert()`, replacing each `v` with `255-v`. |
+| unary `operator -()` | 32, 24, 8, P32, P24, P8 | Replacing each color component `v` with `(256-v) % 256`. |
+| `operator ==()` | 32, 24, 8, P32, P24, P8 | Deep equality test: True if size, pixels, and palette entries are identical. |
+| `operator !=()` | 32, 24, 8, P32, P24, P8 | Deep equality test: False if size, pixels, and palette entries are identical. |
 
 The equality and hash-code methods are not strictly operators, but they're closely related, so they're documented here as well.  Note that `operator==()` and `operator!=()` are implemented using `Equals()`:
 
 | Name | Availability | Summary |
 | ---- | ------------ | ------- |
-| `Equals()` | 32, 8, P32, P8 | Deep equality test: True if size, pixels, and palette entries are identical. |
-| `GetHashCode()` | 32, 8, P32, P8 | Calculate a hash code for this image data (including pixels and palette). |
+| `Equals()` | 32, 24, 8, P32, P24, P8 | Deep equality test: True if size, pixels, and palette entries are identical. |
+| `GetHashCode()` | 32, 24, 8, P32, P24, P8 | Calculate a hash code for this image data (including pixels and palette). |
 
 All image types implement `IEquatable<T>`, not just `Equals(object)`.
 
@@ -376,6 +384,25 @@ There are *lots* of ways to create an image object, including creating both empt
 `PureImage32` includes all of the above, as well as `PureImage32(Image32)`, which wraps the given `Image32` instance in a `PureImage32` struct.
 
 `PureImage32` also provides casting operators to/from `Image32`:  `Image32` --&gt; `PureImage32` is implicit, and `PureImage32` --&gt; `Image32` is explicit.
+
+| Name | Description |
+| ---- | ----------- |
+| `Image24(int, int)` | Construct an image of the given size (filled Transparent). |
+| `Image24(int, int, Color24)` | Construct an image of the given size, filling with the given color. |
+| `Image24(Vector2i)` | Construct an empty image of the given size (filled Transparent). |
+| `Image24(Vector2i, Color24)` | Construct an empty image of the given size, filling with the given color. |
+| `Image24(int, int, ReadOnlySpan<byte>, ReadOnlySpan<Color32>)` | Construct an image of the given size, by copying the given 8-bit data and palette. |
+| `Image24(int, int, Color24[])` | Construct an image around the given color data, WITHOUT copying it. |
+| `Image24(int, int, ReadOnlySpan<byte>)` | Construct an image by copying the raw bytes as color data. |
+| `Image24(int, int, byte*, int)` | Construct an image by copying the raw bytes as color data. |
+| `Image24(int, int, ReadOnlySpan<Color24>)` | Construct an image by copying the given color data. |
+| `Image24(int, int, Color24*, int)` | Construct an image by copying the given color data. |
+| `Image24(string, ImageFormat)` | Construct an image by loading it from a file, by name. |
+| `Image24(ReadOnlySpan<byte>, string, ImageFormat)` | Construct an image by decoding preloaded file data. |
+
+`PureImage24` includes all of the above, as well as `PureImage24(Image24)`, which wraps the given `Image24` instance in a `PureImage24` struct.
+
+`PureImage24` also provides casting operators to/from `Image24`:  `Image24` --&gt; `PureImage24` is implicit, and `PureImage24` --&gt; `Image24` is explicit.
 
 | Name | Description |
 | ---- | ----------- |
@@ -490,6 +517,14 @@ These methods aren't strictly operators, but they are often used in operator-lik
 | `Unpremultiply()` | 32 | Un-premultiply the alpha (approximately). |
 | static `Premultiply()` | 32 | Premultiply the given value against the others. |
 | static `Unpremultiply()` | 32 | Un-premultiply the given values (approximately). |
+| static `Over()` | 32 | Combine colors using the "over" compositing operation. |
+| static `OverOpaque()` | 32 | Apply the "over" operation, but treat bottom color as opaque. |
+| static `OverPM()` | 32 | Combine colors using the "over" compositing operation, premultiplied. |
+| static `OverOpaquePM()` | 32 | Apply the "over" operation, premultiplied; treat bottom as opaque. |
+| static `BlackOver()` | 32 | Apply the "over" operation, treating the source as black. |
+| static `BlackOverPM()` | 32 | Apply the "over" operation, treating the source as black, premultiplied. |
+| static `WhiteOver()` | 32 | Apply the "over" operation, treating the source as white. |
+| static `WhiteOverPM()` | 32 | Apply the "over" operation, treating the source as white, premultiplied. |
 
 ### Color-space transformations
 
@@ -593,14 +628,25 @@ A proper implementation would include error checks, as there is no guarantee tha
 
 `Blit()` supports several modes, in the `BlitFlags` enum:
 
-* `Copy` - Copy all pixels, exactly as given.
-* `Transparent` - Copy or write pixels with simple transparency.
+* `Copy` - Copy all pixel values in all channels, exactly as given.
+* `Transparent` - Copy or write pixels with simple transparency. (For 32-bit: Copy when A != 0. For 24-bit: Copy always. For 8-bit: Copy when value != 0.)
 * `Alpha` - Copy or write pixels, applying alpha ('over' mode).
-* `PMAlpha` - Copy or write pixels, applying alpha, with R, G, and B treated as premultiplied ('over' mode).
-* `Multiply` - Multiply each source pixel value by each destination pixel value.
-* `Add` - Add each source pixel value and each destination pixel value.
-* `Sub` - Subtract the source from the destination.
-* `RSub` - Subtract the destination from the source ("reverse subtract").
+* `AlphaPM` - Copy or write pixels, applying alpha, treating R, G, and B as premultiplied ('over' mode).
+* `BlackAlpha` - Copy or write pixels as black, applying alpha.
+* `BlackAlphaPM` - Copy or write pixels as black, treating R, G, and B as premultiplied ('over' mode).
+* `WhiteAlpha` - Copy or write pixels as white, applying alpha.
+* `WhiteAlphaPM` - Copy or write pixels as white, treating R, G, and B as premultiplied ('over' mode).
+* `Add` - Add each source pixel value and each destination pixel value (all channels).
+* `Sub` - Subtract the source from the destination (all channels).
+* `RSub` - Subtract the destination from the source ("reverse subtract," all channels).
+* `Multiply` - Multiply each source pixel value by each destination pixel value (all channels).
+* `Or` - Bitwise-or each source pixel value with each destination pixel value (all channels).
+* `And` - Bitwise-and each source pixel value with each destination pixel value (all channels).
+* `Xor` - Bitwise-exclusive-or each source pixel value with each destination pixel value (all channels).
+* `Mask` - Bitwise-and the complement of each source pixel value with each destination pixel value (all channels).
+
+Each mode can be combined with any of these three flags.
+
 * `FlipHorz` - Flip the source horizontally when blitting (supported by Copy, Transparent, Alpha, and PMAlpha modes).
 * `FlipVert` - Flip the source vertically when blitting (supported by Copy, Transparent, Alpha, and PMAlpha modes).
 * `FastUnsafe` - Don't calculate crop boundaries for a guaranteed-safe blit:  Assume all coordinates are safe and blit as fast as possible.  This is DANGEROUS and can stomp outside the image data if you're not careful, but it's the fastest way to shove pixels around.

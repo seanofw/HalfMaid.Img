@@ -36,7 +36,7 @@ namespace HalfMaid.Img
 		/// cost of requiring the source data to be modified.  This mode is only meaningful for
 		/// RGBA images and is not supported on paletted images.
 		/// </summary>
-		PMAlpha = 3,
+		AlphaPM = 3,
 
 		/// <summary>
 		/// Multiply the source by the destination; the operation is D = D * S, where each
@@ -69,6 +69,71 @@ namespace HalfMaid.Img
 		/// single value in paletted or grayscale modes.
 		/// </summary>
 		RSub = 7,
+
+		/// <summary>
+		/// Bitwise-or the destination to the source; the operation is D = S | D,
+		/// where each of D and S are integer values in a range of 0 to 255 (or 0 to 65535
+		/// for 16-bit images).  This applies to all channels in RGBA modes, and to the
+		/// single value in paletted or grayscale modes.
+		/// </summary>
+		Or = 8,
+
+		/// <summary>
+		/// Bitwise-and the destination to the source; the operation is D = S &amp; D,
+		/// where each of D and S are integer values in a range of 0 to 255 (or 0 to 65535
+		/// for 16-bit images).  This applies to all channels in RGBA modes, and to the
+		/// single value in paletted or grayscale modes.
+		/// </summary>
+		And = 9,
+
+		/// <summary>
+		/// Bitwise-xor the destination to the source; the operation is D = S ^ D,
+		/// where each of D and S are integer values in a range of 0 to 255 (or 0 to 65535
+		/// for 16-bit images).  This applies to all channels in RGBA modes, and to the
+		/// single value in paletted or grayscale modes.
+		/// </summary>
+		Xor = 10,
+
+		/// <summary>
+		/// Bitwise-and the destination to the complement of the source; the operation is D = ~S &amp; D,
+		/// where each of D and S are integer values in a range of 0 to 255 (or 0 to 65535
+		/// for 16-bit images).  This applies to all channels in RGBA modes, and to the
+		/// single value in paletted or grayscale modes.
+		/// </summary>
+		Mask = 11,
+
+		/// <summary>
+		/// Copy or write pixels, applying the alpha, but treating the RGB values as zero.
+		/// This mode is only meaningful for RGBA images and is not supported on paletted images.
+		/// </summary>
+		BlackAlpha = 12,
+
+		/// <summary>
+		/// Copy or write pixels, applying alpha, but treating the RGB values as 0 (premultiplied).
+		/// This assumes that any RGB values have been premultiplied by the alpha, which results in a faster operation at the
+		/// cost of requiring the source data to be modified.  This mode is only meaningful for
+		/// RGBA images and is not supported on paletted images.
+		/// </summary>
+		BlackAlphaPM = 13,
+
+		/// <summary>
+		/// Copy or write pixels, applying the alpha, but treating the RGB values as 255.
+		/// This mode is only meaningful for RGBA images and is not supported on paletted images.
+		/// </summary>
+		WhiteAlpha = 14,
+
+		/// <summary>
+		/// Copy or write pixels, applying alpha, but treating the RGB values as 255 (premultiplied).
+		/// This assumes that any RGB values have been premultiplied by the alpha, which results in a faster operation at the
+		/// cost of requiring the source data to be modified.  This mode is only meaningful for
+		/// RGBA images and is not supported on paletted images.
+		/// </summary>
+		WhiteAlphaPM = 15,
+
+		/// <summary>
+		/// Number of last defined mode.
+		/// </summary>
+		LastMode = 15,
 
 		/// <summary>
 		/// This is the mask for the "mode" portion of the BlitFlags.  All bits outside

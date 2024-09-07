@@ -17,7 +17,7 @@ namespace HalfMaid.Img
 	/// in performance on some (but not all) operations.
 	/// </summary>
 	[DebuggerDisplay("Image8 {Width}x{Height}")]
-	public readonly struct PureImage8 : IImage<byte>
+	public readonly struct PureImage8 : IPureImage<byte>
 	{
 		#region Core properties and fields
 
@@ -255,7 +255,7 @@ namespace HalfMaid.Img
 		/// not just a duplicate reference.
 		/// </summary>
 		[Pure]
-		IImage IImage.Clone()
+		IImageBase IImageBase.Clone()
 			=> _image.Clone();
 
 		/// <summary>

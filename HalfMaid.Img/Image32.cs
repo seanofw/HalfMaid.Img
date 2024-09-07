@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using OpenTK.Mathematics;
 using HalfMaid.Img.FileFormats;
+using System.Net.NetworkInformation;
 
 namespace HalfMaid.Img
 {
@@ -533,7 +534,7 @@ namespace HalfMaid.Img
 		/// </summary>
 		/// <returns>The newly-cloned image.</returns>
 		[Pure]
-		IImage IImage.Clone()
+		IImageBase IImageBase.Clone()
 			=> new Image32(Width, Height, Data.AsSpan());
 
 		#endregion
@@ -1063,17 +1064,18 @@ namespace HalfMaid.Img
 		/// be taken as a simple cubic B-spline.</param>
 		/// <exception cref="ArgumentException">Raised if the new image size is illegal.</exception>
 		public void Resample(int? width = null, int? height = null, ResampleMode mode = ResampleMode.BSpline)
-			=> Resample(CalculateResampleSize(width, height), mode);
+			=> Resample(CalculateResize(Size, width, height), mode);
 
 		/// <summary>
-		/// Calculate the new dimensions of the resampled image, given that one or both
-		/// of the new dimensions may have been omitted.
+		/// Calculate the new dimensions of the resized image to have a correct aspect
+		/// ratio, given that one or both of the new dimensions may have been omitted.
 		/// </summary>
+		/// <param name="imageSize">The size of the image.</param>
 		/// <param name="userWidth">The new desired width, which may be omitted.</param>
 		/// <param name="userHeight">The new desired height, which may be omitted.</param>
 		/// <returns>The fully-calculated dimensions of the new image.</returns>
 		[Pure]
-		internal Vector2i CalculateResampleSize(int? userWidth, int? userHeight)
+		public static Vector2i CalculateResize(Vector2i imageSize, int? userWidth, int? userHeight)
 		{
 			int width, height;
 			if (userWidth.HasValue)
@@ -1083,20 +1085,20 @@ namespace HalfMaid.Img
 					height = userHeight.Value;
 				else
 				{
-					double ooAspectRatio = (double)Height / Width;
+					double ooAspectRatio = (double)imageSize.Y / imageSize.X;
 					height = (int)(width * ooAspectRatio + 0.5);
 				}
 			}
 			else if (userHeight.HasValue)
 			{
 				height = userHeight.Value;
-				double aspectRatio = (double)Width / Height;
+				double aspectRatio = (double)imageSize.X / imageSize.Y;
 				width = (int)(height * aspectRatio + 0.5);
 			}
 			else
 			{
-				width = Width;
-				height = Height;
+				width = imageSize.X;
+				height = imageSize.Y;
 			}
 
 			return new Vector2i(width, height);
@@ -1267,29 +1269,6 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
-		/// Copy from src image rectangle to dest image rectangle, but copy all colors as black,
-		/// of the given alpha (factoring in any existing alpha).  This will by default clip
-		/// the provided coordinates to perform a safe blit (all pixels outside an image
-		/// will be ignored).
-		/// </summary>
-		/// <param name="srcImage">The source image to copy from.</param>
-		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
-		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
-		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
-		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
-		/// <param name="width">The width of the rectangle of pixels to copy.</param>
-		/// <param name="height">The height of the rectangle of pixels to copy.</param>
-		/// <param name="alpha">The alpha to apply to the resulting pixels; this can be used to make
-		/// the resulting shadow less opaque than the original pixels are.</param>
-		public void ShadowBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, int alpha)
-		{
-			if (!ClipBlit(Size, srcImage.Size, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height))
-				return;
-
-			FastUnsafeShadowBlit(srcImage, srcX, srcY, destX, destY, width, height, alpha);
-		}
-
-		/// <summary>
 		/// Copy from src image rectangle to dest image rectangle, in-place.  This will by default clip
 		/// the provided coordinates to perform a safe blit (all pixels outside an image
 		/// will be ignored).
@@ -1311,41 +1290,21 @@ namespace HalfMaid.Img
 					return;
 			}
 
-			switch (blitFlags & (BlitFlags.ModeMask | BlitFlags.FlipHorz))
+			// In the special case of copying from one image to another, we use
+			// optimized unrolled loops.
+			if ((blitFlags & BlitFlags.ModeMask) == BlitFlags.Copy && srcImage != this)
 			{
-				case BlitFlags.Copy:
-					FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height,
+				if ((blitFlags & BlitFlags.FlipHorz) != 0)
+					FastUnsafeCopyBlitFlipHorz(srcImage, srcX, srcY, destX, destY, width, height,
 						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-				case BlitFlags.Transparent:
-					FastUnsafeTransparentBlit(srcImage, srcX, srcY, destX, destY, width, height,
+				else
+					FastUnsafeCopyBlit(srcImage, srcX, srcY, destX, destY, width, height,
 						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-				case BlitFlags.Alpha:
-					FastUnsafeAlphaBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-				case BlitFlags.PMAlpha:
-					FastUnsafePMAlphaBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-				case BlitFlags.Add:
-					FastUnsafeAddBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-				case BlitFlags.Multiply:
-					FastUnsafeMultiplyBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-
-				case BlitFlags.Copy | BlitFlags.FlipHorz:
-					FastUnsafeBlitFlipHorz(srcImage, srcX, srcY, destX, destY, width, height,
-						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-				case BlitFlags.Transparent | BlitFlags.FlipHorz:
-					FastUnsafeTransparentBlitFlipHorz(srcImage, srcX, srcY, destX, destY, width, height,
-						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-
-				default:
-					throw new InvalidOperationException($"Unsupported blit mode: {blitFlags & BlitFlags.ModeMask}");
+				return;
 			}
+
+			// General case:  Every other blit type.
+			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags);
 		}
 
 		/// <summary>
@@ -1356,7 +1315,7 @@ namespace HalfMaid.Img
 #if NETCOREAPP
 			[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
+		private void FastUnsafeCopyBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
 		{
 			unsafe
 			{
@@ -1430,288 +1389,6 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle.  This skips
-		/// any Color32.Transparent pixels.  Make sure all values are within range; this is as
-		/// unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeTransparentBlit(Image32 srcImage,
-			int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					if (flipVert)
-					{
-						src += srcImage.Width * (height - 1);
-						srcSkip = -width - srcImage.Width;
-					}
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						Color32 c;
-						while (count >= 8)
-						{
-							if ((c = src[0]).A != 0) dest[0] = c;
-							if ((c = src[1]).A != 0) dest[1] = c;
-							if ((c = src[2]).A != 0) dest[2] = c;
-							if ((c = src[3]).A != 0) dest[3] = c;
-							if ((c = src[4]).A != 0) dest[4] = c;
-							if ((c = src[5]).A != 0) dest[5] = c;
-							if ((c = src[6]).A != 0) dest[6] = c;
-							if ((c = src[7]).A != 0) dest[7] = c;
-							count -= 8;
-							src += 8;
-							dest += 8;
-						}
-						if (count != 0)
-						{
-							if ((count & 4) != 0)
-							{
-								if ((c = src[0]).A != 0) dest[0] = c;
-								if ((c = src[1]).A != 0) dest[1] = c;
-								if ((c = src[2]).A != 0) dest[2] = c;
-								if ((c = src[3]).A != 0) dest[3] = c;
-								src += 4;
-								dest += 4;
-							}
-							if ((count & 2) != 0)
-							{
-								if ((c = src[0]).A != 0) dest[0] = c;
-								if ((c = src[1]).A != 0) dest[1] = c;
-								src += 2;
-								dest += 2;
-							}
-							if ((count & 1) != 0)
-							{
-								if ((c = src[0]).A != 0) dest[0] = c;
-								src++;
-								dest++;
-							}
-						}
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					if (!flipVert)
-					{
-						Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-						Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-					}
-					else
-					{
-						Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-						Debug.Assert(src + srcImage.Width >= srcBase && src + srcImage.Width <= srcLimit);
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, applying
-		/// alpha from the source, and treating the dest as opaque.  Make sure all values are
-		/// within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeAlphaBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							Color32 s = *src++, d = *dest;
-							if (s.A == 255)
-							{
-								// No need to apply alpha math; this pixel is opaque.
-								*dest++ = s;
-							}
-							else if (s.A != 0)
-							{
-								// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
-								// we do the math for real, but exclusively using integers (for performance).
-								uint a = s.A, ia = (uint)(255 - s.A);
-								uint r = s.R * a + d.R * ia + 127;
-								uint g = s.G * a + d.G * ia + 127;
-								uint b = s.B * a + d.B * ia + 127;
-								r = (r + 1 + (r >> 8)) >> 8;    // Divide by 255, faster than "r /= 255"
-								g = (g + 1 + (g >> 8)) >> 8;
-								b = (b + 1 + (b >> 8)) >> 8;
-								*dest++ = new Color32((byte)r, (byte)g, (byte)b, (byte)255);
-							}
-							else dest++;
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, applying
-		/// alpha from the (premultiplied!) source, and treating the dest as opaque.  Make sure all values are
-		/// within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafePMAlphaBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							Color32 s = *src++, d = *dest;
-							if (s.A == 255)
-							{
-								// No need to apply alpha math; this pixel is opaque.
-								*dest++ = s;
-							}
-							else if (s.A != 0)
-							{
-								// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
-								// we do the math for real, but exclusively using integers (for performance).
-								// This uses premultiplied source colors for even more performance.
-								uint ia = (uint)(255 - s.A);
-								uint r = d.R * ia + 127;
-								uint g = d.G * ia + 127;
-								uint b = d.B * ia + 127;
-								r = s.R + ((r + 1 + (r >> 8)) >> 8);
-								g = s.G + ((g + 1 + (g >> 8)) >> 8);
-								b = s.B + ((b + 1 + (b >> 8)) >> 8);
-								*dest++ = new Color32((byte)r, (byte)g, (byte)b, (byte)255);
-							}
-							else dest++;
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, applying
-		/// alpha from the source, treating the dest as opaque, and treating all source
-		/// colors as black.  Make sure all values are within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeShadowBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY,
-			int width, int height, int alpha)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							Color32 s = *src++, d = *dest;
-							uint a = s.A * (uint)alpha;
-							a = (a + 1 + (a >> 8)) >> 8;    // Divide by 255, faster than "r /= 255"
-							if (a == 255)
-							{
-								// No need to apply alpha math; this pixel is opaque.
-								*dest++ = Color32.Black;
-							}
-							else if (a != 0)
-							{
-								// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
-								// we do the math for real, but exclusively using integers (for performance).
-								uint ia = (255 - a);
-								uint r = d.R * ia + 127;
-								uint g = d.G * ia + 127;
-								uint b = d.B * ia + 127;
-								uint da = d.A;
-								r = (r + 1 + (r >> 8)) >> 8;    // Divide by 255, faster than "r /= 255"
-								g = (g + 1 + (g >> 8)) >> 8;
-								b = (b + 1 + (b >> 8)) >> 8;
-								da = Math.Min(da + a, 255);
-								*dest++ = new Color32((byte)r, (byte)g, (byte)b, (byte)da);
-							}
-							else dest++;
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-		/// <summary>
 		/// Fast, unsafe copy from src image rectangle to dest image rectangle.  This doesn't apply alpha;
 		/// it just slams new data over top of old.  Make sure all values are within range; this is as
 		/// unsafe as it sounds.  This flips the pixels horizontally while copying.
@@ -1719,7 +1396,7 @@ namespace HalfMaid.Img
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlitFlipHorz(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
+		private void FastUnsafeCopyBlitFlipHorz(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
 		{
 			unsafe
 			{
@@ -1801,291 +1478,151 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle.  This skips
-		/// any Color32.Transparent pixels.  Make sure all values are within range; this is as
-		/// unsafe as it sounds.  This flips the pixels horizontally while copying.
+		/// Fast, unsafe copy from src image rectangle to dest image rectangle, combining
+		/// color values in the source and destination together using a bitwise mode.
+		/// Make sure all values are within range; this is as unsafe as it sounds.
 		/// </summary>
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeTransparentBlitFlipHorz(Image32 srcImage,
-			int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
+		private void FastUnsafeBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, BlitFlags blitFlags)
 		{
+			if (width <= 0 || height <= 0)
+				return;     // Basic safety check. Should never be needed, but...
+
+			// Make sure the mode is within range.  With this constraint, the JIT will
+			// (hopefully) turn the switch into a simple computed goto with no extra conditionals.
+			int mode = (int)(blitFlags & BlitFlags.ModeMask);
+			if (mode < 0 || mode > (int)BlitFlags.LastMode)
+				throw new ArgumentException($"Illegal or unknown blit mode '{(BlitFlags)mode}'");
+
 			unsafe
 			{
 				fixed (Color32* destBase = Data)
 				fixed (Color32* srcBase = srcImage.Data)
 				{
 					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX + width;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width + width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
+					Color32* dest = destBase + Width * destY + destX;
 
-					if (flipVert)
+					int srcStep = 1;
+					int destStep = 1;
+					int srcSkip = srcImage.Width - width;
+					int destSkip = Width - width;
+
+					if (src < dest)
 					{
+						// To produce proper "move" semantics, we need to reverse the blit
+						// so that we're not accidentally stomping on part of the source data
+						// during the operation.  We do this by flipping src in both directions,
+						// and then also flipping dest in both directions.
+
+						// Flip src vertically.
 						src += srcImage.Width * (height - 1);
 						srcSkip = -width - srcImage.Width;
+
+						// Flip src horizontally.
+						srcStep = -1;
+						src += width - 1;
+						srcSkip += width;
+
+						// Now flip dest too, which will result in the original desired orientation.
+						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
+					}
+
+					if ((blitFlags & BlitFlags.FlipVert) != 0)
+					{
+						dest += Width * (height - 1);
+						destSkip = -width - Width;
+					}
+
+					if ((blitFlags & BlitFlags.FlipHorz) != 0)
+					{
+						destStep = -1;
+						dest += width - 1;
+						destSkip += width;
 					}
 
 					do
 					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
+						Color32* end = src + width;
 
-						int count = width;
-						Color32 c;
-						while (count >= 8)
+						switch (mode)
 						{
-							dest -= 8;
-							if ((c = src[0]).A != 0) dest[7] = c;
-							if ((c = src[1]).A != 0) dest[6] = c;
-							if ((c = src[2]).A != 0) dest[5] = c;
-							if ((c = src[3]).A != 0) dest[4] = c;
-							if ((c = src[4]).A != 0) dest[3] = c;
-							if ((c = src[5]).A != 0) dest[2] = c;
-							if ((c = src[6]).A != 0) dest[1] = c;
-							if ((c = src[7]).A != 0) dest[0] = c;
-							count -= 8;
-							src += 8;
+							case (int)BlitFlags.Copy:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = *src;
+								break;
+							case (int)BlitFlags.Add:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest += *src;
+								break;
+							case (int)BlitFlags.Sub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest -= *src;
+								break;
+							case (int)BlitFlags.RSub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = *src - *dest;
+								break;
+							case (int)BlitFlags.Multiply:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest *= *src;
+								break;
+							case (int)BlitFlags.Or:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest |= *src;
+								break;
+							case (int)BlitFlags.And:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= *src;
+								break;
+							case (int)BlitFlags.Xor:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest ^= *src;
+								break;
+							case (int)BlitFlags.Mask:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= ~*src;
+								break;
+							case (int)BlitFlags.Transparent:
+								for (; src != end; src += srcStep, dest += destStep)
+									if (src->A != 0)
+										*dest = *src;
+								break;
+							case (int)BlitFlags.Alpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.Over(over: *src, under: *dest);
+								break;
+							case (int)BlitFlags.AlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.OverPM(over: *src, under: *dest);
+								break;
+							case (int)BlitFlags.BlackAlpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.BlackOver(src->A, under: *dest);
+								break;
+							case (int)BlitFlags.BlackAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.BlackOverPM(src->A, under: *dest);
+								break;
+							case (int)BlitFlags.WhiteAlpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.WhiteOver(src->A, under: *dest);
+								break;
+							case (int)BlitFlags.WhiteAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.WhiteOverPM(src->A, under: *dest);
+								break;
 						}
-						if (count != 0)
-						{
-							if ((count & 4) != 0)
-							{
-								dest -= 4;
-								if ((c = src[0]).A != 0) dest[3] = c;
-								if ((c = src[1]).A != 0) dest[2] = c;
-								if ((c = src[2]).A != 0) dest[1] = c;
-								if ((c = src[3]).A != 0) dest[0] = c;
-								src += 4;
-							}
-							if ((count & 2) != 0)
-							{
-								dest -= 2;
-								if ((c = src[0]).A != 0) dest[1] = c;
-								if ((c = src[1]).A != 0) dest[0] = c;
-								src += 2;
-							}
-							if ((count & 1) != 0)
-							{
-								dest--;
-								if ((c = src[0]).A != 0) dest[0] = c;
-								src++;
-							}
-						}
+
 						src += srcSkip;
 						dest += destSkip;
 					} while (--height != 0);
-
-					if (!flipVert)
-					{
-						Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-						Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-					}
-					else
-					{
-						Debug.Assert(dest >= destBase && dest <= destLimit);
-						Debug.Assert(src + srcImage.Width >= srcBase && src + srcImage.Width <= srcLimit);
-					}
 				}
 			}
 		}
 
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, adding
-		/// all color values in the source and destination together (i.e., result.r = src.r + dest.r).
-		/// Make sure all values are within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeAddBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							Color32 s = *src++, d = *dest;
-							byte r = (byte)Math.Min(s.R + d.R, 255);
-							byte g = (byte)Math.Min(s.G + d.G, 255);
-							byte b = (byte)Math.Min(s.B + d.B, 255);
-							byte a = (byte)Math.Min(s.A + d.A, 255);
-							*dest++ = new Color32(r, g, b, a);
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, subtracting
-		/// all color values in the source and destination together (i.e., result.r = src.r - dest.r).
-		/// Make sure all values are within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeRSubBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							Color32 s = *src++, d = *dest;
-							byte r = (byte)Math.Max(s.R - d.R, 0);
-							byte g = (byte)Math.Max(s.G - d.G, 0);
-							byte b = (byte)Math.Max(s.B - d.B, 0);
-							byte a = (byte)Math.Max(s.A - d.A, 0);
-							*dest++ = new Color32(r, g, b, a);
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, subtracting
-		/// all color values in the source and destination together (i.e., result.r = dest.r - src.r).
-		/// Make sure all values are within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeSubBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							Color32 s = *src++, d = *dest;
-							byte r = (byte)Math.Max(d.R - s.R, 0);
-							byte g = (byte)Math.Max(d.G - s.G, 0);
-							byte b = (byte)Math.Max(d.B - s.B, 0);
-							byte a = (byte)Math.Max(d.A - s.A, 0);
-							*dest++ = new Color32(r, g, b, a);
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, multiplying
-		/// all color values in the source and destination together (i.e., result.r = src.r * dest.r / 255).
-		/// Make sure all values are within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeMultiplyBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (Color32* destBase = Data)
-				fixed (Color32* srcBase = srcImage.Data)
-				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color32* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					Color32* destLimit = destBase + Width * Height;
-					Color32* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							Color32 s = *src++, d = *dest;
-							uint r = (uint)(s.R * d.R);
-							uint g = (uint)(s.G * d.G);
-							uint b = (uint)(s.B * d.B);
-							uint a = (uint)(s.A * d.A);
-							r = (r + 1 + (r >> 8)) >> 8;    // Divide by 255, faster than "r /= 255"
-							g = (g + 1 + (g >> 8)) >> 8;
-							b = (b + 1 + (b >> 8)) >> 8;
-							a = (a + 1 + (a >> 8)) >> 8;
-							*dest++ = new Color32((byte)r, (byte)g, (byte)b, (byte)a);
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-#endregion
+		#endregion
 
 		#region Pattern blits
 
@@ -2535,6 +2072,58 @@ namespace HalfMaid.Img
 						v = matrix * v;
 						Color32 result = new Color32((int)(v.X * 255 + 0.5f), (int)(v.Y * 255 + 0.5f), (int)(v.Z * 255 + 0.5f), src.A);
 						*ptr++ = result;
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Transform this image into a silhouette by keeping its alpha values unchanged
+		/// but replacing its red/green/blue values with the given values from the silhouette color.
+		/// This even affects pixels with an alpha of zero.
+		/// </summary>
+		/// <param name="color">The silhouette color.</param>
+		public void Silhouette(Color32 color)
+		{
+			unsafe
+			{
+				fixed (Color32* imageBase = Data)
+				{
+					Color32* ptr = imageBase;
+					Color32* end = imageBase + Width * Height;
+
+					while (ptr < end)
+					{
+						*ptr = new Color32(color.R, color.G, color.B, ptr->A);
+						ptr++;
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Transform this image into a silhouette by keeping its alpha values unchanged
+		/// but replacing its red/green/blue values with the given values from the silhouette
+		/// color, premultiplied against its alpha values.
+		/// </summary>
+		/// <param name="color">The silhouette color.</param>
+		public void SilhouettePM(Color32 color)
+		{
+			unsafe
+			{
+				fixed (Color32* imageBase = Data)
+				{
+					Color32* ptr = imageBase;
+					Color32* end = imageBase + Width * Height;
+
+					while (ptr < end)
+					{
+						byte a = ptr->A;
+						*ptr = new Color32(
+							Color32.Div255(color.R * a),
+							Color32.Div255(color.G * a),
+							Color32.Div255(color.B * a), a);
+						ptr++;
 					}
 				}
 			}
@@ -4230,10 +3819,10 @@ namespace HalfMaid.Img
 							drawMode = drawColor.A == 255 ? BlitFlags.Copy : BlitFlags.Alpha;
 							break;
 
-						case BlitFlags.PMAlpha:
+						case BlitFlags.AlphaPM:
 							if (drawColor.A == 0)
 								return;
-							drawMode = drawColor.A == 255 ? BlitFlags.Copy : BlitFlags.PMAlpha;
+							drawMode = drawColor.A == 255 ? BlitFlags.Copy : BlitFlags.AlphaPM;
 							break;
 					}
 
@@ -4269,7 +3858,7 @@ namespace HalfMaid.Img
 							}
 							break;
 
-						case BlitFlags.PMAlpha:
+						case BlitFlags.AlphaPM:
 							while (height-- != 0)
 							{
 								int count = width;
@@ -4500,7 +4089,7 @@ namespace HalfMaid.Img
 							}
 							break;
 
-						case BlitFlags.PMAlpha:
+						case BlitFlags.AlphaPM:
 							count = v.width;
 							while (count-- != 0)
 							{
@@ -4804,7 +4393,7 @@ namespace HalfMaid.Img
 						}
 						break;
 
-					case BlitFlags.PMAlpha:
+					case BlitFlags.AlphaPM:
 						while (true)
 						{
 							Color32 d = Data[index];
@@ -5025,10 +4614,10 @@ namespace HalfMaid.Img
 					drawMode = color.A == 255 ? BlitFlags.Copy : BlitFlags.Alpha;
 					break;
 
-				case BlitFlags.PMAlpha:
+				case BlitFlags.AlphaPM:
 					if (color.A == 0)
 						return;
-					drawMode = color.A == 255 ? BlitFlags.Copy : BlitFlags.PMAlpha;
+					drawMode = color.A == 255 ? BlitFlags.Copy : BlitFlags.AlphaPM;
 					break;
 			}
 
@@ -5176,7 +4765,7 @@ namespace HalfMaid.Img
 							}
 							break;
 
-						case BlitFlags.PMAlpha:
+						case BlitFlags.AlphaPM:
 							for (int i = 0; i < points.Length; i += 2)
 							{
 								if (points[i] >= Width)
@@ -5362,10 +4951,10 @@ namespace HalfMaid.Img
 		/// <param name="strength">How strong to apply the kernel, where 0.0 is not
 		/// at all, and 1.0 is the kernel as given.</param>
 		/// <returns>A new image where an approximate 3x3 Gaussian blur has been applied.</returns>
-		public Image32 ApproximateGaussianBlurFast(double strength = 1.0)
-			=> Convolve3x3(_gaussianBlurKernel, strength, true);
+		public Image32 RoundBlur(double strength = 1.0)
+			=> Convolve3x3(_approximateGaussianBlurKernel, strength, true);
 
-		private readonly double[] _gaussianBlurKernel = new double[]
+		private readonly double[] _approximateGaussianBlurKernel = new double[]
 		{
 			1, 2, 1,
 			2, 4, 2,

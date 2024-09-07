@@ -17,7 +17,7 @@ namespace HalfMaid.Img
 	/// in performance on some (but not all) operations.
 	/// </summary>
 	[DebuggerDisplay("Image {Width}x{Height}")]
-	public readonly struct PureImage32 : IImage<Color32>
+	public readonly struct PureImage32 : IPureImage<Color32>
 	{
 		#region Core properties and fields
 
@@ -293,7 +293,7 @@ namespace HalfMaid.Img
 		/// not just a duplicate reference.
 		/// </summary>
 		[Pure]
-		IImage IImage.Clone()
+		IImageBase IImageBase.Clone()
 			=> _image.Clone();
 
 		/// <summary>
@@ -579,7 +579,7 @@ namespace HalfMaid.Img
 		/// <exception cref="ArgumentException">Raised if the new image size is illegal.</exception>
 		[Pure]
 		public PureImage32 Resample(int? width = null, int? height = null, ResampleMode mode = ResampleMode.BSpline)
-			=> Resample(_image.CalculateResampleSize(width, height), mode);
+			=> Resample(Image32.CalculateResize(Size, width, height), mode);
 
 		/// <summary>
 		/// Perform resampling using the chosen mode.  This is slower than nearest-neighbor
@@ -983,6 +983,36 @@ namespace HalfMaid.Img
 		{
 			Image32 copy = _image.Clone();
 			copy.RemapColor(matrix);
+			return copy;
+		}
+
+		/// <summary>
+		/// Transform this image into a silhouette by keeping its alpha values unchanged
+		/// but replacing its red/green/blue values with the given values from the silhouette color.
+		/// This even affects pixels with an alpha of zero.
+		/// </summary>
+		/// <param name="color">The silhouette color.</param>
+		/// <returns>The new silhouette image.</returns>
+		[Pure]
+		public PureImage32 Silhouette(Color32 color)
+		{
+			Image32 copy = _image.Clone();
+			copy.Silhouette(color);
+			return copy;
+		}
+
+		/// <summary>
+		/// Transform this image into a silhouette by keeping its alpha values unchanged
+		/// but replacing its red/green/blue values with the given values from the silhouette
+		/// color, premultiplied against its alpha values.
+		/// </summary>
+		/// <param name="color">The silhouette color.</param>
+		/// <returns>The new silhouette image.</returns>
+		[Pure]
+		public PureImage32 SilhouettePM(Color32 color)
+		{
+			Image32 copy = _image.Clone();
+			copy.SilhouettePM(color);
 			return copy;
 		}
 
@@ -2001,8 +2031,8 @@ namespace HalfMaid.Img
 		/// <param name="strength">How strong to apply the kernel, where 0.0 is not
 		/// at all, and 1.0 is the kernel as given.</param>
 		/// <returns>A new image where an approximate 3x3 Gaussian blur has been applied.</returns>
-		public PureImage32 ApproximateGaussianBlurFast(double strength = 1.0)
-			=> _image.ApproximateGaussianBlurFast(strength);
+		public PureImage32 RoundBlur(double strength = 1.0)
+			=> _image.RoundBlur(strength);
 
 		/// <summary>
 		/// Apply a 3x3 convolution kernel to the given image, generating a new

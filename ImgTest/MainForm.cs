@@ -350,7 +350,7 @@ namespace ImgTest
 			AmountResult? result = AmountDialog.Show(this, "Approximate Gaussian Blur", 1.0);
 			if (result == null) return;
 
-			UpdateImageWithUndo(Image.ApproximateGaussianBlurFast(result.Value), "Approximate Gaussian Blur");
+			UpdateImageWithUndo(Image.RoundBlur(result.Value), "Approximate Gaussian Blur");
 		}
 
 		private void Effects_Sharpen_Click(object sender, EventArgs e)

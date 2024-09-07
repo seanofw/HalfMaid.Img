@@ -605,7 +605,7 @@ namespace HalfMaid.Img
 		/// </summary>
 		/// <returns>The newly-cloned image.</returns>
 		[Pure]
-		IImage IImage.Clone()
+		IImageBase IImageBase.Clone()
 			=> new Image8(Width, Height, Data.AsSpan(), Palette.AsSpan());
 
 		#endregion
@@ -899,6 +899,56 @@ namespace HalfMaid.Img
 		public static Vector2d Fit(Vector2d imageSize, Vector2d containerSize, FitMode fitMode)
 			=> Image32.Fit(imageSize, containerSize, fitMode);
 
+		/// <summary>
+		/// Perform resampling to fit the given container size using the chosen fitting
+		/// mode and resampling mode, in-place.  This is slower than nearest-neighbor
+		/// resampling, but it can produce much higher-fidelity results.
+		/// </summary>
+		/// <param name="containerSize">The container size.</param>
+		/// <param name="fitMode">How to fit the image to the container.</param>
+		/// <param name="mode">The mode (sampling function) to use.  If omitted/null, this will
+		/// be taken as a simple cubic B-spline.</param>
+		/// <exception cref="ArgumentException">Raised if the new image size is illegal.</exception>
+		void IImage.ResampleToFit(Vector2i containerSize, FitMode fitMode, ResampleMode mode)
+			=> ResizeToFit(containerSize, fitMode);
+
+		/// <summary>
+		/// Perform resampling using the chosen mode, in-place.  This is slower than nearest-neighbor
+		/// resampling, but it can produce much higher-fidelity results.
+		/// </summary>
+		/// <param name="width">The new image width.  If omitted/null, this will be determined
+		/// automatically from the given height.</param>
+		/// <param name="height">The new image height.  If omitted/null, this will be determined
+		/// automatically from the given width.</param>
+		/// <param name="mode">The mode (sampling function) to use.  If omitted/null, this will
+		/// be taken as a simple cubic B-spline.</param>
+		/// <exception cref="ArgumentException">Raised if the new image size is illegal.</exception>
+		void IImage.Resample(int? width, int? height, ResampleMode mode)
+			=> Resize(CalculateResize(Size, width, height));
+
+		/// <summary>
+		/// Perform resampling using the chosen mode, in-place.  This is slower than nearest-neighbor
+		/// resampling, but it can produce much higher-fidelity results.
+		/// </summary>
+		/// <param name="newSize">The new image size.</param>
+		/// <param name="mode">The mode (sampling function) to use.  If omitted/null, this will
+		/// be taken as a simple cubic B-spline.</param>
+		/// <exception cref="ArgumentException">Raised if the new image size is illegal.</exception>
+		void IImage.Resample(Vector2i newSize, ResampleMode mode)
+			=> Resize(newSize);
+
+		/// <summary>
+		/// Calculate the new dimensions of the resized image to have a correct aspect
+		/// ratio, given that one or both of the new dimensions may have been omitted.
+		/// </summary>
+		/// <param name="imageSize">The size of the image.</param>
+		/// <param name="userWidth">The new desired width, which may be omitted.</param>
+		/// <param name="userHeight">The new desired height, which may be omitted.</param>
+		/// <returns>The fully-calculated dimensions of the new image.</returns>
+		[Pure]
+		public static Vector2i CalculateResize(Vector2i imageSize, int? userWidth, int? userHeight)
+			=> Image32.CalculateResize(imageSize, userWidth, userHeight);
+
 		#endregion
 
 		#region Clipping helpers
@@ -984,10 +1034,18 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
-		/// Copy from src image rectangle to dest image rectangle.  This will by default clip
+		/// Copy from src image rectangle to dest image rectangle, in-place.  This will by default clip
 		/// the provided coordinates to perform a safe blit (all pixels outside an image
 		/// will be ignored).
 		/// </summary>
+		/// <param name="srcImage">The source image to copy from.</param>
+		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="width">The width of the rectangle of pixels to copy.</param>
+		/// <param name="height">The height of the rectangle of pixels to copy.</param>
+		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
 		public void Blit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
 			BlitFlags blitFlags = default)
 		{
@@ -997,41 +1055,21 @@ namespace HalfMaid.Img
 					return;
 			}
 
-			switch (blitFlags & (BlitFlags.ModeMask | BlitFlags.FlipHorz))
+			// In the special case of copying from one image to another, we use
+			// optimized unrolled loops.
+			if ((blitFlags & BlitFlags.ModeMask) == BlitFlags.Copy && srcImage != this)
 			{
-				case BlitFlags.Copy:
-					FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height,
+				if ((blitFlags & BlitFlags.FlipHorz) != 0)
+					FastUnsafeCopyBlitFlipHorz(srcImage, srcX, srcY, destX, destY, width, height,
 						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-				case BlitFlags.Transparent:
-					FastUnsafeTransparentBlit(srcImage, srcX, srcY, destX, destY, width, height,
+				else
+					FastUnsafeCopyBlit(srcImage, srcX, srcY, destX, destY, width, height,
 						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-
-				case BlitFlags.Add:
-					FastUnsafeAddBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-				case BlitFlags.Multiply:
-					FastUnsafeMultiplyBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-				case BlitFlags.Sub:
-					FastUnsafeSubBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-				case BlitFlags.RSub:
-					FastUnsafeRSubBlit(srcImage, srcX, srcY, destX, destY, width, height);
-					break;
-
-				case BlitFlags.Copy | BlitFlags.FlipHorz:
-					FastUnsafeBlitFlipHorz(srcImage, srcX, srcY, destX, destY, width, height,
-						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-				case BlitFlags.Transparent | BlitFlags.FlipHorz:
-					FastUnsafeTransparentBlitFlipHorz(srcImage, srcX, srcY, destX, destY, width, height,
-						(blitFlags & BlitFlags.FlipVert) != 0);
-					break;
-				default:
-					throw new InvalidOperationException($"Unsupported blit mode: {blitFlags & BlitFlags.ModeMask}");
+				return;
 			}
+
+			// General case:  Every other blit type.
+			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags);
 		}
 
 		/// <summary>
@@ -1040,9 +1078,9 @@ namespace HalfMaid.Img
 		/// unsafe as it sounds.
 		/// </summary>
 #if NETCOREAPP
-			[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
+		private void FastUnsafeCopyBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
 		{
 			unsafe
 			{
@@ -1124,339 +1162,6 @@ namespace HalfMaid.Img
 		}
 
 		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle.  This skips
-		/// any pixels that are color 0.  Make sure all values are within range; this is as
-		/// unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeTransparentBlit(Image8 srcImage,
-			int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
-		{
-			unsafe
-			{
-				fixed (byte* destBase = Data)
-				fixed (byte* srcBase = srcImage.Data)
-				{
-					byte* src = srcBase + srcImage.Width * srcY + srcX;
-					byte* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					byte* destLimit = destBase + Width * Height;
-					byte* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					if (flipVert)
-					{
-						src += srcImage.Width * (height - 1);
-						srcSkip = -width - srcImage.Width;
-					}
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						byte c;
-						while (count >= 8)
-						{
-							if ((c = src[0]) != 0) dest[0] = c;
-							if ((c = src[1]) != 0) dest[1] = c;
-							if ((c = src[2]) != 0) dest[2] = c;
-							if ((c = src[3]) != 0) dest[3] = c;
-							if ((c = src[4]) != 0) dest[4] = c;
-							if ((c = src[5]) != 0) dest[5] = c;
-							if ((c = src[6]) != 0) dest[6] = c;
-							if ((c = src[7]) != 0) dest[7] = c;
-							count -= 8;
-							src += 8;
-							dest += 8;
-						}
-						if (count != 0)
-						{
-							if ((count & 4) != 0)
-							{
-								if ((c = src[0]) != 0) dest[0] = c;
-								if ((c = src[1]) != 0) dest[1] = c;
-								if ((c = src[2]) != 0) dest[2] = c;
-								if ((c = src[3]) != 0) dest[3] = c;
-								src += 4;
-								dest += 4;
-							}
-							if ((count & 2) != 0)
-							{
-								if ((c = src[0]) != 0) dest[0] = c;
-								if ((c = src[1]) != 0) dest[1] = c;
-								src += 2;
-								dest += 2;
-							}
-							if ((count & 1) != 0)
-							{
-								if ((c = src[0]) != 0) dest[0] = c;
-								src++;
-								dest++;
-							}
-						}
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					if (!flipVert)
-					{
-						Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-						Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-					}
-					else
-					{
-						Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-						Debug.Assert(src + srcImage.Width >= srcBase && src + srcImage.Width <= srcLimit);
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe add of src image rectangle values to dest image rectangle values.
-		/// Make sure all coordinates are within range; this is as unsafe as it sounds.
-		/// </summary>
-		private void FastUnsafeAddBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (byte* destBase = Data)
-				fixed (byte* srcBase = srcImage.Data)
-				{
-					byte* src = srcBase + srcImage.Width * srcY + srcX;
-					byte* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-
-					do
-					{
-						int count = width;
-						while (count >= 8)
-						{
-							dest[0] = (byte)Math.Min(src[0] + dest[0], 255);
-							dest[1] = (byte)Math.Min(src[1] + dest[1], 255);
-							dest[2] = (byte)Math.Min(src[2] + dest[2], 255);
-							dest[3] = (byte)Math.Min(src[3] + dest[3], 255);
-							dest[4] = (byte)Math.Min(src[4] + dest[4], 255);
-							dest[5] = (byte)Math.Min(src[5] + dest[5], 255);
-							dest[6] = (byte)Math.Min(src[6] + dest[6], 255);
-							dest[7] = (byte)Math.Min(src[7] + dest[7], 255);
-							count -= 8;
-							src += 8;
-							dest += 8;
-						}
-						if (count != 0)
-						{
-							if ((count & 4) != 0)
-							{
-								dest[0] = (byte)Math.Min(src[0] + dest[0], 255);
-								dest[1] = (byte)Math.Min(src[1] + dest[1], 255);
-								dest[2] = (byte)Math.Min(src[2] + dest[2], 255);
-								dest[3] = (byte)Math.Min(src[3] + dest[3], 255);
-								src += 4;
-								dest += 4;
-							}
-							if ((count & 2) != 0)
-							{
-								dest[0] = (byte)Math.Min(src[0] + dest[0], 255);
-								dest[1] = (byte)Math.Min(src[1] + dest[1], 255);
-								src += 2;
-								dest += 2;
-							}
-							if ((count & 1) != 0)
-							{
-								dest[0] = (byte)Math.Min(src[0] + dest[0], 255);
-								dest++;
-								src++;
-							}
-						}
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle, multiplying
-		/// all color values in the source and destination together (i.e., result.r = src.r * dest.r / 255).
-		/// Make sure all values are within range; this is as unsafe as it sounds.
-		/// </summary>
-#if NETCOREAPP
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-		private void FastUnsafeMultiplyBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (byte* destBase = Data)
-				fixed (byte* srcBase = srcImage.Data)
-				{
-					byte* src = srcBase + srcImage.Width * srcY + srcX;
-					byte* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-					byte* destLimit = destBase + Width * Height;
-					byte* srcLimit = srcBase + srcImage.Width * srcImage.Height;
-
-					do
-					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
-
-						int count = width;
-						do
-						{
-							byte s = *src++, d = *dest;
-							uint v = (uint)(s * d);
-							v = (v + 1 + (v >> 8)) >> 8;    // Divide by 255, faster than "v /= 255"
-							*dest++ = (byte)v;
-						} while (--count != 0);
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-
-					Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-					Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe subtract of src image rectangle values to dest image rectangle values.
-		/// Make sure all coordinates are within range; this is as unsafe as it sounds.
-		/// </summary>
-		private void FastUnsafeSubBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (byte* destBase = Data)
-				fixed (byte* srcBase = srcImage.Data)
-				{
-					byte* src = srcBase + srcImage.Width * srcY + srcX;
-					byte* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-
-					do
-					{
-						int count = width;
-						while (count >= 8)
-						{
-							dest[0] = (byte)Math.Max(dest[0] - src[0], 0);
-							dest[1] = (byte)Math.Max(dest[1] - src[1], 0);
-							dest[2] = (byte)Math.Max(dest[2] - src[2], 0);
-							dest[3] = (byte)Math.Max(dest[3] - src[3], 0);
-							dest[4] = (byte)Math.Max(dest[4] - src[4], 0);
-							dest[5] = (byte)Math.Max(dest[5] - src[5], 0);
-							dest[6] = (byte)Math.Max(dest[6] - src[6], 0);
-							dest[7] = (byte)Math.Max(dest[7] - src[7], 0);
-							count -= 8;
-							src += 8;
-							dest += 8;
-						}
-						if (count != 0)
-						{
-							if ((count & 4) != 0)
-							{
-								dest[0] = (byte)Math.Max(dest[0] - src[0], 0);
-								dest[1] = (byte)Math.Max(dest[1] - src[1], 0);
-								dest[2] = (byte)Math.Max(dest[2] - src[2], 0);
-								dest[3] = (byte)Math.Max(dest[3] - src[3], 0);
-								src += 4;
-								dest += 4;
-							}
-							if ((count & 2) != 0)
-							{
-								dest[0] = (byte)Math.Min(dest[0] - src[0], 0);
-								dest[1] = (byte)Math.Min(dest[1] - src[1], 0);
-								src += 2;
-								dest += 2;
-							}
-							if ((count & 1) != 0)
-							{
-								dest[0] = (byte)Math.Min(dest[0] - src[0], 0);
-								dest++;
-								src++;
-							}
-						}
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Fast, unsafe subtract of src image rectangle values to dest image rectangle values.
-		/// Make sure all coordinates are within range; this is as unsafe as it sounds.
-		/// </summary>
-		private void FastUnsafeRSubBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height)
-		{
-			unsafe
-			{
-				fixed (byte* destBase = Data)
-				fixed (byte* srcBase = srcImage.Data)
-				{
-					byte* src = srcBase + srcImage.Width * srcY + srcX;
-					byte* dest = destBase + Width * destY + destX;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-
-					do
-					{
-						int count = width;
-						while (count >= 8)
-						{
-							dest[0] = (byte)Math.Max(src[0] - dest[0], 0);
-							dest[1] = (byte)Math.Max(src[1] - dest[1], 0);
-							dest[2] = (byte)Math.Max(src[2] - dest[2], 0);
-							dest[3] = (byte)Math.Max(src[3] - dest[3], 0);
-							dest[4] = (byte)Math.Max(src[4] - dest[4], 0);
-							dest[5] = (byte)Math.Max(src[5] - dest[5], 0);
-							dest[6] = (byte)Math.Max(src[6] - dest[6], 0);
-							dest[7] = (byte)Math.Max(src[7] - dest[7], 0);
-							count -= 8;
-							src += 8;
-							dest += 8;
-						}
-						if (count != 0)
-						{
-							if ((count & 4) != 0)
-							{
-								dest[0] = (byte)Math.Max(src[0] - dest[0], 0);
-								dest[1] = (byte)Math.Max(src[1] - dest[1], 0);
-								dest[2] = (byte)Math.Max(src[2] - dest[2], 0);
-								dest[3] = (byte)Math.Max(src[3] - dest[3], 0);
-								src += 4;
-								dest += 4;
-							}
-							if ((count & 2) != 0)
-							{
-								dest[0] = (byte)Math.Min(src[0] - dest[0], 0);
-								dest[1] = (byte)Math.Min(src[1] - dest[1], 0);
-								src += 2;
-								dest += 2;
-							}
-							if ((count & 1) != 0)
-							{
-								dest[0] = (byte)Math.Min(src[0] - dest[0], 0);
-								dest++;
-								src++;
-							}
-						}
-						src += srcSkip;
-						dest += destSkip;
-					} while (--height != 0);
-				}
-			}
-		}
-
-		/// <summary>
 		/// Fast, unsafe copy from src image rectangle to dest image rectangle.  Make sure all
 		/// values are within range; this is as unsafe as it sounds.  This flips the pixels
 		/// horizontally while copying.
@@ -1464,7 +1169,7 @@ namespace HalfMaid.Img
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlitFlipHorz(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
+		private void FastUnsafeCopyBlitFlipHorz(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
 		{
 			unsafe
 			{
@@ -1545,95 +1250,136 @@ namespace HalfMaid.Img
 			}
 		}
 
+
 		/// <summary>
-		/// Fast, unsafe copy from src image rectangle to dest image rectangle.  This skips
-		/// any Color.Transparent pixels.  Make sure all values are within range; this is as
-		/// unsafe as it sounds.  This flips the pixels horizontally while copying.
+		/// Fast, unsafe copy from src image rectangle to dest image rectangle, combining
+		/// color values in the source and destination together using a bitwise mode.
+		/// Make sure all values are within range; this is as unsafe as it sounds.
 		/// </summary>
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		public void FastUnsafeTransparentBlitFlipHorz(Image8 srcImage,
-			int srcX, int srcY, int destX, int destY, int width, int height, bool flipVert)
+		private void FastUnsafeBlit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height, BlitFlags blitFlags)
 		{
+			if (width <= 0 || height <= 0)
+				return;     // Basic safety check. Should never be needed, but...
+
+			// Make sure the mode is within range.  With this constraint, the JIT will
+			// (hopefully) turn the switch into a simple computed goto with no extra conditionals.
+			int mode = (int)(blitFlags & BlitFlags.ModeMask);
+			if (mode < 0 || mode > (int)BlitFlags.LastMode)
+				throw new ArgumentException($"Illegal or unknown blit mode '{(BlitFlags)mode}'");
+
 			unsafe
 			{
 				fixed (byte* destBase = Data)
 				fixed (byte* srcBase = srcImage.Data)
 				{
 					byte* src = srcBase + srcImage.Width * srcY + srcX;
-					byte* dest = destBase + Width * destY + destX + width;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width + width;
-					byte* destLimit = destBase + Width * Height;
-					byte* srcLimit = srcBase + srcImage.Width * srcImage.Height;
+					byte* dest = destBase + Width * destY + destX;
 
-					if (flipVert)
+					int srcStep = 1;
+					int destStep = 1;
+					int srcSkip = srcImage.Width - width;
+					int destSkip = Width - width;
+
+					if (src < dest)
 					{
+						// To produce proper "move" semantics, we need to reverse the blit
+						// so that we're not accidentally stomping on part of the source data
+						// during the operation.  We do this by flipping src in both directions,
+						// and then also flipping dest in both directions.
+
+						// Flip src vertically.
 						src += srcImage.Width * (height - 1);
 						srcSkip = -width - srcImage.Width;
+
+						// Flip src horizontally.
+						srcStep = -1;
+						src += width - 1;
+						srcSkip += width;
+
+						// Now flip dest too, which will result in the original desired orientation.
+						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
+					}
+
+					if ((blitFlags & BlitFlags.FlipVert) != 0)
+					{
+						dest += Width * (height - 1);
+						destSkip = -width - Width;
+					}
+
+					if ((blitFlags & BlitFlags.FlipHorz) != 0)
+					{
+						destStep = -1;
+						dest += width - 1;
+						destSkip += width;
 					}
 
 					do
 					{
-						Debug.Assert(dest >= destBase && dest + width <= destLimit);
-						Debug.Assert(src >= srcBase && src + width <= srcLimit);
+						byte* end = src + width;
 
-						int count = width;
-						byte c;
-						while (count >= 8)
+						switch (mode)
 						{
-							dest -= 8;
-							if ((c = src[0]) != 0) dest[7] = c;
-							if ((c = src[1]) != 0) dest[6] = c;
-							if ((c = src[2]) != 0) dest[5] = c;
-							if ((c = src[3]) != 0) dest[4] = c;
-							if ((c = src[4]) != 0) dest[3] = c;
-							if ((c = src[5]) != 0) dest[2] = c;
-							if ((c = src[6]) != 0) dest[1] = c;
-							if ((c = src[7]) != 0) dest[0] = c;
-							count -= 8;
-							src += 8;
+							case (int)BlitFlags.Copy:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = *src;
+								break;
+							case (int)BlitFlags.Add:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest += *src;
+								break;
+							case (int)BlitFlags.Sub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest -= *src;
+								break;
+							case (int)BlitFlags.RSub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = (byte)Math.Max(*src - *dest, 0);
+								break;
+							case (int)BlitFlags.Multiply:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest *= *src;
+								break;
+							case (int)BlitFlags.Or:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest |= *src;
+								break;
+							case (int)BlitFlags.And:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= *src;
+								break;
+							case (int)BlitFlags.Xor:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest ^= *src;
+								break;
+							case (int)BlitFlags.Mask:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= (byte)~*src;
+								break;
+							case (int)BlitFlags.Transparent:
+							case (int)BlitFlags.Alpha:
+							case (int)BlitFlags.AlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									if (*src != 0)
+										*dest = *src;
+								break;
+							case (int)BlitFlags.BlackAlpha:
+							case (int)BlitFlags.BlackAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = 0;
+								break;
+							case (int)BlitFlags.WhiteAlpha:
+							case (int)BlitFlags.WhiteAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = 255;
+								break;
 						}
-						if (count != 0)
-						{
-							if ((count & 4) != 0)
-							{
-								dest -= 4;
-								if ((c = src[0]) != 0) dest[3] = c;
-								if ((c = src[1]) != 0) dest[2] = c;
-								if ((c = src[2]) != 0) dest[1] = c;
-								if ((c = src[3]) != 0) dest[0] = c;
-								src += 4;
-							}
-							if ((count & 2) != 0)
-							{
-								dest -= 2;
-								if ((c = src[0]) != 0) dest[1] = c;
-								if ((c = src[1]) != 0) dest[0] = c;
-								src += 2;
-							}
-							if ((count & 1) != 0)
-							{
-								dest--;
-								if ((c = src[0]) != 0) dest[0] = c;
-								src++;
-							}
-						}
+
 						src += srcSkip;
 						dest += destSkip;
 					} while (--height != 0);
-
-					if (!flipVert)
-					{
-						Debug.Assert(dest >= destBase && dest - destX <= destLimit);
-						Debug.Assert(src >= srcBase && src - srcX <= srcLimit);
-					}
-					else
-					{
-						Debug.Assert(dest >= destBase && dest <= destLimit);
-						Debug.Assert(src + srcImage.Width >= srcBase && src + srcImage.Width <= srcLimit);
-					}
 				}
 			}
 		}

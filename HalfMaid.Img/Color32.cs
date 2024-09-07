@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -527,8 +528,222 @@ namespace HalfMaid.Img
 #else
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
-		private static int Div255(int x)
+		internal static int Div255(int x)
 			=> (x + 1 + (x >> 8)) >> 8;
+
+		#endregion
+
+		#region Over operation
+
+		/// <summary>
+		/// Calculate layering of one color over another color.
+		/// </summary>
+		/// <param name="over">The color that is on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		public static Color32 Over(Color32 over, Color32 under)
+		{
+			int a = over.A;
+
+			if (a == 255)
+				return over;
+
+			if (a == 0)
+				return under;
+
+			// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
+			// we do the math for real, but exclusively using integers (for performance).
+
+			int ia = 255 - a;
+			int r = over.R * a + under.R * ia + 127;
+			int g = over.G * a + under.G * ia + 127;
+			int b = over.B * a + under.B * ia + 127;
+			a = under.A * 255 + a * 255 - under.A * a + 127;
+
+			return new Color32((byte)Div255(r), (byte)Div255(g), (byte)Div255(b), (byte)Div255(a));
+		}
+
+		/// <summary>
+		/// Calculate layering of one color over another color.  This version applies
+		/// the alpha of the 'over' color, but ignores the alpha of the 'under' color,
+		/// always resulting in an alpha of 255.  This can avoid multiplications in
+		/// some high-performance scenarios where the composited alpha isn't needed.
+		/// </summary>
+		/// <param name="over">The color that is on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		public static Color32 OverOpaque(Color32 over, Color32 under)
+		{
+			int a = over.A;
+
+			if (a == 255)
+				return over;
+
+			if (a == 0)
+				return new Color32(under.R, under.G, under.B, (byte)255);
+
+			// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
+			// we do the math for real, but exclusively using integers (for performance).
+
+			int ia = 255 - a;
+			int r = over.R * a + under.R * ia + 127;
+			int g = over.G * a + under.G * ia + 127;
+			int b = over.B * a + under.B * ia + 127;
+
+			return new Color32((byte)Div255(r), (byte)Div255(g), (byte)Div255(b), (byte)255);
+		}
+
+		/// <summary>
+		/// Calculate layering of one color over another color.  Both colors
+		/// will be treated as though their alphas have been premultiplied.
+		/// </summary>
+		/// <param name="over">The color that is on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		public static Color32 OverPM(Color32 over, Color32 under)
+		{
+			int a = over.A;
+
+			if (a == 255)
+				return over;
+
+			if (a == 0)
+				return under;
+
+			// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
+			// we do the math for real, but exclusively using integers (for performance).
+
+			int ia = 255 - a;
+			int r = over.R + under.R * ia + 127;
+			int g = over.G + under.G * ia + 127;
+			int b = over.B + under.B * ia + 127;
+			a = under.A * 255 + a * 255 - under.A * a + 127;
+
+			return new Color32((byte)Div255(r), (byte)Div255(g), (byte)Div255(b), (byte)Div255(a));
+		}
+
+		/// <summary>
+		/// Calculate layering of one color over another color.  Both colors
+		/// will be treated as though their alphas have been premultiplied.  This version applies
+		/// the alpha of the 'over' color, but ignores the alpha of the 'under' color,
+		/// always resulting in an alpha of 255.  This can avoid multiplications in
+		/// some high-performance scenarios where the composited alpha isn't needed.
+		/// </summary>
+		/// <param name="over">The color that is on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		public static Color32 OverOpaquePM(Color32 over, Color32 under)
+		{
+			int a = over.A;
+
+			if (a == 255)
+				return over;
+
+			if (a == 0)
+				return new Color32(under.R, under.G, under.B, (byte)255);
+
+			// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
+			// we do the math for real, but exclusively using integers (for performance).
+
+			int ia = 255 - a;
+			int r = over.R + under.R * ia + 127;
+			int g = over.G + under.G * ia + 127;
+			int b = over.B + under.B * ia + 127;
+
+			return new Color32((byte)Div255(r), (byte)Div255(g), (byte)Div255(b), (byte)255);
+		}
+
+		/// <summary>
+		/// Calculate layering of black over another color, with the black at the given
+		/// alpha level.  This is like calling Over(Black, under) with the alpha value
+		/// modified, but is optimized for the special case where the color is black.
+		/// </summary>
+		/// <param name="a">The alpha value of the black color on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		public static Color32 BlackOver(int a, Color32 under)
+		{
+			if (a >= 255)
+				return Black;
+
+			if (a <= 0)
+				return under;
+
+			// We only apply alpha math if this pixel isn't 100% transparent.  Otherwise,
+			// we do the math for real, but exclusively using integers (for performance).
+
+			int ia = 255 - a;
+			int r = under.R * ia + 127;
+			int g = under.G * ia + 127;
+			int b = under.B * ia + 127;
+			a = under.A * 255 + a * 255 - under.A * a + 127;
+
+			return new Color32((byte)Div255(r), (byte)Div255(g), (byte)Div255(b), (byte)Div255(a));
+		}
+
+		/// <summary>
+		/// Calculate layering of black over another color, with the black at the given
+		/// alpha level.  This is exactly the same as calling BlackOver(a, under).
+		/// </summary>
+		/// <param name="a">The alpha value of the white color on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Color32 BlackOverPM(int a, Color32 under)
+			=> BlackOver(a, under);
+
+		/// <summary>
+		/// Calculate layering of white over another color, with the white at the given
+		/// alpha level.  This is the same as calling Over(White, under), with the alpha
+		/// value modified, but is a convenient shorthand.
+		/// </summary>
+		/// <param name="a">The alpha value of the white color on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Color32 WhiteOver(int a, Color32 under)
+		{
+			byte ba = (byte)Math.Min(Math.Max(a, 0), 255);
+			return Over(new Color32((byte)255, (byte)255, (byte)255, ba), under);
+		}
+
+		/// <summary>
+		/// Calculate layering of white over another color, with the white at the given
+		/// alpha level.  This is the same as calling Over(White, under), with the alpha
+		/// value modified, but is a convenient shorthand.
+		/// </summary>
+		/// <param name="a">The alpha value of the white color on top.</param>
+		/// <param name="under">The color that is on the bottom.</param>
+		/// <returns>The combined colors, with the alpha applied correctly.</returns>
+		[Pure]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Color32 WhiteOverPM(int a, Color32 under)
+		{
+			byte ba = (byte)Math.Min(Math.Max(a, 0), 255);
+			return OverPM(new Color32(ba, ba, ba, ba), under);
+		}
 
 		#endregion
 
@@ -1028,7 +1243,7 @@ namespace HalfMaid.Img
 
 		#region Static colors (CSS colors)
 
-		#pragma warning disable 1591
+#pragma warning disable 1591
 
 		public static readonly Color32 Transparent = new Color32((byte)0, (byte)0, (byte)0, (byte)0);
 
@@ -1180,7 +1395,7 @@ namespace HalfMaid.Img
 		public static readonly Color32 Yellow = new Color32((byte)255, (byte)255, (byte)0, (byte)255);
 		public static readonly Color32 YellowGreen = new Color32((byte)154, (byte)205, (byte)50, (byte)255);
 
-		#pragma warning restore 1591
+#pragma warning restore 1591
 
 		#endregion
 
@@ -1577,11 +1792,11 @@ namespace HalfMaid.Img
 		private static int ParseHexDigit(char v)
 			   => v < 128 ? _hexDigitValues[v] : 0;
 
-		#if NETCOREAPP
+#if NETCOREAPP
 			[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-		#else
+#else
 			[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		#endif
+#endif
 		private static bool IsHexDigits(ReadOnlySpan<char> chars)
 		{
 			foreach (char ch in chars)
@@ -1606,11 +1821,11 @@ namespace HalfMaid.Img
 			return start < ptr && ptr < start + 8;
 		}
 
-		#if NETCOREAPP
+#if NETCOREAPP
 			[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-		#else
+#else
 			[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		#endif
+#endif
 		private static void SkipWhitespace(ReadOnlySpan<char> input, ref int ptr)
 		{
 			char ch;
