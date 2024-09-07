@@ -271,6 +271,10 @@ Note that constructors are documented separately below:  Each class includes sev
 | `Sepia()` | 32, 24, 8, P32, P24, P8 | Remap the image to a sepia-toned image. |
 | `HueSaturationLightness()` | 32, 24, 8, P32, P24, P8 | Adjust hue, saturation, and lightness of the image (or palette). |
 | `HueSaturationBrightness()` | 32, 24, 8, P32, P24, P8 | Adjust hue, saturation, and brightness of the image (or palette). |
+| `BrightnessContrast()` | 32, 24, 8, P32, P24, P8 | Adjust brightness and contrast of the image (or palette). |
+| `ColorTemperature()` | 32, 24, 8, P32, P24, P8 | Adjust color temperature of the image (or palette) in Kelvin. |
+| `AdjustRange()` | 32, 24, 8, P32, P24, P8 | Scale the range of each color channel to the given target. |
+| `RemapValues()` | 32, 24, 8, P32, P24, P8 | Remap each color channel through a 256-byte lookup table. |
 | `ToGrayscale256()` | 32, 24, 8, P32, P24, P8 | Convert the image to use the standard `Grayscale256` palette. |
 | `Invert()` | 8, P8 | Replace each pixel value `v` with `255-v`. |
 | `Invert()` | 32, 24, P32, P24 | Replace one or more of the red, green, and blue channels `v` with `255-v`. |
