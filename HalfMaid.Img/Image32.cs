@@ -1283,6 +1283,9 @@ namespace HalfMaid.Img
 		public void Blit(Image32 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
 			BlitFlags blitFlags = default, Color32 color = default)
 		{
+			if (Object.ReferenceEquals(srcImage, null))
+				throw new ArgumentNullException(nameof(srcImage), "Source image for a blit cannot be null.");
+
 			if ((blitFlags & BlitFlags.FastUnsafe) == 0)
 			{
 				if (!ClipBlit(Size, srcImage.Size, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height))
@@ -1291,7 +1294,8 @@ namespace HalfMaid.Img
 
 			// In the special case of copying from one image to another, we use
 			// optimized unrolled loops.
-			if ((blitFlags & BlitFlags.ModeMask) == BlitFlags.Copy && srcImage != this)
+			if ((blitFlags & BlitFlags.ModeMask) == BlitFlags.Copy
+				&& !Object.ReferenceEquals(srcImage, this))
 			{
 				if ((blitFlags & BlitFlags.FlipHorz) != 0)
 					FastUnsafeCopyBlitFlipHorz(srcImage, srcX, srcY, destX, destY, width, height,
@@ -1303,7 +1307,68 @@ namespace HalfMaid.Img
 			}
 
 			// General case:  Every other blit type.
-			FastUnsafeBlit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			FastUnsafeBlit32(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
+		}
+
+		/// <summary>
+		/// Copy from src image rectangle to dest image rectangle, in-place.  This will by default clip
+		/// the provided coordinates to perform a safe blit (all pixels outside an image
+		/// will be ignored).
+		/// </summary>
+		/// <param name="srcImage">The source image to copy from.  Each pixel will be promoted to 32-bit RGBA
+		/// by adding an alpha channel whose values are entirely 255.</param>
+		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="width">The width of the rectangle of pixels to copy.</param>
+		/// <param name="height">The height of the rectangle of pixels to copy.</param>
+		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
+		/// <param name="color">The color to use for color-blit modes.</param>
+		public void Blit(Image24 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
+			BlitFlags blitFlags = default, Color32 color = default)
+		{
+			if (Object.ReferenceEquals(srcImage, null))
+				throw new ArgumentNullException(nameof(srcImage), "Source image for a blit cannot be null.");
+
+			if ((blitFlags & BlitFlags.FastUnsafe) == 0)
+			{
+				if (!ClipBlit(Size, srcImage.Size, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height))
+					return;
+			}
+
+			// General case:  Every other blit type.
+			FastUnsafeBlit24(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
+		}
+
+		/// <summary>
+		/// Copy from src image rectangle to dest image rectangle, in-place.  This will by default clip
+		/// the provided coordinates to perform a safe blit (all pixels outside an image
+		/// will be ignored).
+		/// </summary>
+		/// <param name="srcImage">The source image to copy from.  Each pixel will be promoted to 32-bit RGBA via the image's palette.</param>
+		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="width">The width of the rectangle of pixels to copy.</param>
+		/// <param name="height">The height of the rectangle of pixels to copy.</param>
+		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
+		/// <param name="color">The color to use for color-blit modes.</param>
+		public void Blit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
+			BlitFlags blitFlags = default, Color32 color = default)
+		{
+			if (Object.ReferenceEquals(srcImage, null))
+				throw new ArgumentNullException(nameof(srcImage), "Source image for a blit cannot be null.");
+
+			if ((blitFlags & BlitFlags.FastUnsafe) == 0)
+			{
+				if (!ClipBlit(Size, srcImage.Size, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height))
+					return;
+			}
+
+			// General case:  Every other blit type.
+			FastUnsafeBlit8(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
 		}
 
 		/// <summary>
@@ -1484,7 +1549,7 @@ namespace HalfMaid.Img
 #if NETCOREAPP
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-		private void FastUnsafeBlit(Image32 srcImage, int srcX, int srcY, int destX, int destY,
+		private void FastUnsafeBlit32(Image32 srcImage, int srcX, int srcY, int destX, int destY,
 			int width, int height, BlitFlags blitFlags, Color32 color)
 		{
 			if (width <= 0 || height <= 0)
@@ -1632,6 +1697,332 @@ namespace HalfMaid.Img
 							case (int)BlitFlags.ColorAlphaPM:
 								for (; src != end; src += srcStep, dest += destStep)
 									*dest = Color32.OverPM(over: src->Scale(color), under: *dest);
+								break;
+						}
+
+						src += srcSkip;
+						dest += destSkip;
+					} while (--height != 0);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Fast, unsafe copy from src image rectangle to dest image rectangle, combining
+		/// color values in the source and destination together using a bitwise mode.
+		/// Make sure all values are within range; this is as unsafe as it sounds.
+		/// </summary>
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		private void FastUnsafeBlit24(Image24 srcImage, int srcX, int srcY, int destX, int destY,
+			int width, int height, BlitFlags blitFlags, Color32 color)
+		{
+			if (width <= 0 || height <= 0)
+				return;     // Basic safety check. Should never be needed, but...
+
+			// Make sure the mode is within range.  With this constraint, the JIT will
+			// (hopefully) turn the switch into a simple computed goto with no extra conditionals.
+			int mode = (int)(blitFlags & BlitFlags.ModeMask);
+			if (mode < 0 || mode > (int)BlitFlags.LastMode)
+				throw new ArgumentException($"Illegal or unknown blit mode '{(BlitFlags)mode}'");
+
+			unsafe
+			{
+				fixed (Color32* destBase = Data)
+				fixed (Color24* srcBase = srcImage.Data)
+				{
+					Color24* src = srcBase + srcImage.Width * srcY + srcX;
+					Color32* dest = destBase + Width * destY + destX;
+
+					int srcStep = 1;
+					int destStep = 1;
+					int srcSkip = srcImage.Width - width;
+					int destSkip = Width - width;
+
+					if (src < dest)
+					{
+						// To produce proper "move" semantics, we need to reverse the blit
+						// so that we're not accidentally stomping on part of the source data
+						// during the operation.  We do this by flipping src in both directions,
+						// and then also flipping dest in both directions.
+
+						// Flip src vertically.
+						src += srcImage.Width * (height - 1);
+						srcSkip = -width - srcImage.Width;
+
+						// Flip src horizontally.
+						srcStep = -1;
+						src += width - 1;
+						srcSkip += width;
+
+						// Now flip dest too, which will result in the original desired orientation.
+						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
+					}
+
+					if ((blitFlags & BlitFlags.FlipVert) != 0)
+					{
+						dest += Width * (height - 1);
+						destSkip = -width - Width;
+					}
+
+					if ((blitFlags & BlitFlags.FlipHorz) != 0)
+					{
+						destStep = -1;
+						dest += width - 1;
+						destSkip += width;
+					}
+
+					do
+					{
+						Color24* end = src + width;
+
+						switch (mode)
+						{
+							case (int)BlitFlags.Copy:
+							case (int)BlitFlags.Transparent:
+							case (int)BlitFlags.Alpha:
+							case (int)BlitFlags.AlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = *src;
+								break;
+							case (int)BlitFlags.Add:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest += *src;
+								break;
+							case (int)BlitFlags.Sub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest -= *src;
+								break;
+							case (int)BlitFlags.RSub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = *src - *dest;
+								break;
+							case (int)BlitFlags.Multiply:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest *= *src;
+								break;
+							case (int)BlitFlags.Or:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest |= *src;
+								break;
+							case (int)BlitFlags.And:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= *src;
+								break;
+							case (int)BlitFlags.Xor:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest ^= *src;
+								break;
+							case (int)BlitFlags.Mask:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= ~*src;
+								break;
+							case (int)BlitFlags.BlackAlpha:
+							case (int)BlitFlags.BlackAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.Black;
+								break;
+							case (int)BlitFlags.WhiteAlpha:
+							case (int)BlitFlags.WhiteAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.White;
+								break;
+							case (int)BlitFlags.Color:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = ((Color32)(*src)).Scale(color);
+								break;
+							case (int)BlitFlags.ColorTransparent:
+								for (; src != end; src += srcStep, dest += destStep)
+								{
+									Color32 c = ((Color32)(*src)).Scale(color);
+									if (c.A != 0)
+										*dest = c;
+								}
+								break;
+							case (int)BlitFlags.ColorAlpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.Over(over: ((Color32)(*src)).Scale(color), under: *dest);
+								break;
+							case (int)BlitFlags.ColorAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.OverPM(over: ((Color32)(*src)).Scale(color), under: *dest);
+								break;
+						}
+
+						src += srcSkip;
+						dest += destSkip;
+					} while (--height != 0);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Fast, unsafe copy from src image rectangle to dest image rectangle, combining
+		/// color values in the source and destination together using a bitwise mode.
+		/// Make sure all values are within range; this is as unsafe as it sounds.
+		/// </summary>
+#if NETCOREAPP
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+		private void FastUnsafeBlit8(Image8 srcImage, int srcX, int srcY, int destX, int destY,
+			int width, int height, BlitFlags blitFlags, Color32 color)
+		{
+			if (width <= 0 || height <= 0)
+				return;     // Basic safety check. Should never be needed, but...
+
+			// Make sure the mode is within range.  With this constraint, the JIT will
+			// (hopefully) turn the switch into a simple computed goto with no extra conditionals.
+			int mode = (int)(blitFlags & BlitFlags.ModeMask);
+			if (mode < 0 || mode > (int)BlitFlags.LastMode)
+				throw new ArgumentException($"Illegal or unknown blit mode '{(BlitFlags)mode}'");
+
+			// Since we don't know what values the srcImage's pixels will take, and
+			// the palette *could* be shorter than 256 entries, we reference the palette
+			// using a span instead of a pointer, which will ensure that the compiler
+			// emits bounds-checking for its lookups, and correctly throws exceptions
+			// if the image references a nonexistent palette entry.
+			ReadOnlySpan<Color32> palette = srcImage.Palette;
+
+			unsafe
+			{
+				fixed (Color32* destBase = Data)
+				fixed (byte* srcBase = srcImage.Data)
+				{
+					byte* src = srcBase + srcImage.Width * srcY + srcX;
+					Color32* dest = destBase + Width * destY + destX;
+
+					int srcStep = 1;
+					int destStep = 1;
+					int srcSkip = srcImage.Width - width;
+					int destSkip = Width - width;
+
+					if (src < dest)
+					{
+						// To produce proper "move" semantics, we need to reverse the blit
+						// so that we're not accidentally stomping on part of the source data
+						// during the operation.  We do this by flipping src in both directions,
+						// and then also flipping dest in both directions.
+
+						// Flip src vertically.
+						src += srcImage.Width * (height - 1);
+						srcSkip = -width - srcImage.Width;
+
+						// Flip src horizontally.
+						srcStep = -1;
+						src += width - 1;
+						srcSkip += width;
+
+						// Now flip dest too, which will result in the original desired orientation.
+						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
+					}
+
+					if ((blitFlags & BlitFlags.FlipVert) != 0)
+					{
+						dest += Width * (height - 1);
+						destSkip = -width - Width;
+					}
+
+					if ((blitFlags & BlitFlags.FlipHorz) != 0)
+					{
+						destStep = -1;
+						dest += width - 1;
+						destSkip += width;
+					}
+
+					do
+					{
+						byte* end = src + width;
+
+						switch (mode)
+						{
+							case (int)BlitFlags.Copy:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = palette[*src];
+								break;
+							case (int)BlitFlags.Add:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest += palette[*src];
+								break;
+							case (int)BlitFlags.Sub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest -= palette[*src];
+								break;
+							case (int)BlitFlags.RSub:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = palette[*src] - *dest;
+								break;
+							case (int)BlitFlags.Multiply:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest *= palette[*src];
+								break;
+							case (int)BlitFlags.Or:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest |= palette[*src];
+								break;
+							case (int)BlitFlags.And:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= palette[*src];
+								break;
+							case (int)BlitFlags.Xor:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest ^= palette[*src];
+								break;
+							case (int)BlitFlags.Mask:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest &= ~palette[*src];
+								break;
+							case (int)BlitFlags.Transparent:
+								for (; src != end; src += srcStep, dest += destStep)
+								{
+									Color32 c = palette[*src];
+									if (c.A != 0)
+										*dest = c;
+								}
+								break;
+							case (int)BlitFlags.Alpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.Over(over: palette[*src], under: *dest);
+								break;
+							case (int)BlitFlags.AlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.OverPM(over: palette[*src], under: *dest);
+								break;
+							case (int)BlitFlags.BlackAlpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.BlackOver(palette[*src].A, under: *dest);
+								break;
+							case (int)BlitFlags.BlackAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.BlackOverPM(palette[*src].A, under: *dest);
+								break;
+							case (int)BlitFlags.WhiteAlpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.WhiteOver(palette[*src].A, under: *dest);
+								break;
+							case (int)BlitFlags.WhiteAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.WhiteOverPM(palette[*src].A, under: *dest);
+								break;
+							case (int)BlitFlags.Color:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = palette[*src].Scale(color);
+								break;
+							case (int)BlitFlags.ColorTransparent:
+								for (; src != end; src += srcStep, dest += destStep)
+								{
+									Color32 c = palette[*src].Scale(color);
+									if (c.A != 0)
+										*dest = c;
+								}
+								break;
+							case (int)BlitFlags.ColorAlpha:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.Over(over: palette[*src].Scale(color), under: *dest);
+								break;
+							case (int)BlitFlags.ColorAlphaPM:
+								for (; src != end; src += srcStep, dest += destStep)
+									*dest = Color32.OverPM(over: palette[*src].Scale(color), under: *dest);
 								break;
 						}
 

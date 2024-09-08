@@ -699,6 +699,64 @@ namespace HalfMaid.Img
 			return copy;
 		}
 
+		/// <summary>
+		/// Copy from src image rectangle to dest image rectangle.  This will by default clip
+		/// the provided coordinates to perform a safe blit (all pixels outside an image
+		/// will be ignored).
+		/// </summary>
+		/// <param name="srcImage">The source image to copy from.</param>
+		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="width">The width of the rectangle of pixels to copy.</param>
+		/// <param name="height">The height of the rectangle of pixels to copy.</param>
+		/// <param name="blitFlags">Flags controlling how the blit operation is performed.</param>
+		/// <param name="color">The color to use for color blit modes.</param>
+		/// <returns>A new image, with part of it replaced by 'srcImage'.</returns>
+		/// <remarks>
+		/// This Blit() does *not* perform the update in-place, and is typically slower than Image32.Blit()
+		/// by a lot.  This is usually not the method you want unless regularity (or piping)
+		/// matters more to you than performance.
+		/// </remarks>
+		[Pure]
+		public PureImage32 Blit(Image24 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
+			BlitFlags blitFlags = default, Color32 color = default)
+		{
+			Image32 copy = _image.Clone();
+			copy.Blit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			return copy;
+		}
+
+		/// <summary>
+		/// Copy from src image rectangle to dest image rectangle.  This will by default clip
+		/// the provided coordinates to perform a safe blit (all pixels outside an image
+		/// will be ignored).
+		/// </summary>
+		/// <param name="srcImage">The source image to copy from.</param>
+		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="width">The width of the rectangle of pixels to copy.</param>
+		/// <param name="height">The height of the rectangle of pixels to copy.</param>
+		/// <param name="blitFlags">Flags controlling how the blit operation is performed.</param>
+		/// <param name="color">The color to use for color blit modes.</param>
+		/// <returns>A new image, with part of it replaced by 'srcImage'.</returns>
+		/// <remarks>
+		/// This Blit() does *not* perform the update in-place, and is typically slower than Image32.Blit()
+		/// by a lot.  This is usually not the method you want unless regularity (or piping)
+		/// matters more to you than performance.
+		/// </remarks>
+		[Pure]
+		public PureImage32 Blit(Image8 srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
+			BlitFlags blitFlags = default, Color32 color = default)
+		{
+			Image32 copy = _image.Clone();
+			copy.Blit(srcImage, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			return copy;
+		}
+
 		#endregion
 
 		#region Pattern blits
