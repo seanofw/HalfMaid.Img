@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using OpenTK.Mathematics;
 using HalfMaid.Img.FileFormats;
+using HalfMaid.Img.Fonts;
 
 namespace HalfMaid.Img
 {
@@ -1264,6 +1265,34 @@ namespace HalfMaid.Img
 			Width = image.Width;
 			Height = image.Height;
 			Data = image.Data;
+		}
+
+		/// <summary>
+		/// Copy from src image rectangle to dest image rectangle, in-place.  This will by default clip
+		/// the provided coordinates to perform a safe blit (all pixels outside an image
+		/// will be ignored).
+		/// </summary>
+		/// <param name="srcImage">The source image to copy from.  Each pixel will be promoted to 32-bit RGBA
+		/// by adding an alpha channel whose values are entirely 255.</param>
+		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="width">The width of the rectangle of pixels to copy.</param>
+		/// <param name="height">The height of the rectangle of pixels to copy.</param>
+		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
+		/// <param name="color">The color to use for color-blit modes.</param>
+		public void Blit(IImage srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
+			BlitFlags blitFlags = default, Color32 color = default)
+		{
+			if (srcImage is Image32 image32)
+				Blit(image32, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			else if (srcImage is Image24 image24)
+				Blit(image24, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			else if (srcImage is Image8 image8)
+				Blit(image8, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			else
+				throw new ArgumentException($"Unknown or unsupported image type: {(srcImage?.GetType().Name ?? "null")}");
 		}
 
 		/// <summary>
@@ -5312,6 +5341,196 @@ namespace HalfMaid.Img
 
 		#endregion
 
+		#region Text drawing
+
+		internal delegate Vector2d DrawTextFunc(Vector2d point, ReadOnlySpan<char> text, Font font,
+			Color32 color, BlitFlags blitFlags);
+
+		/// <summary>
+		/// Reusable aligned-text-drawing routine.  This draws the given text, in the given font,
+		/// starting at the given point (for the top-left corner of the text).  It advances
+		/// to the right after drawing each character.  The '\n' character (code point 10)
+		/// will advance to the next line.  By default, this copies from the font in
+		/// color-alpha mode, so if the font image is properly constructed, the color
+		/// parameter will determine the color of the text.  This doesn't use fancy font
+		/// shaping, but instead just draws left-to-right starting at the given point.
+		/// This overload supports alignment of the text within the given rectangle.
+		/// </summary>
+		/// <param name="rect">The containing rectangle for the text.</param>
+		/// <param name="text">The text to draw.</param>
+		/// <param name="font">The font to use to draw the text.</param>
+		/// <param name="color">The color of the text.</param>
+		/// <param name="blitFlags">Which blit mode to use when drawing each glyph.</param>
+		/// <param name="textAlignment">How to align the text relative to the given rectangle.</param>
+		/// <param name="drawTextLine">A method that can actually draw a single line of text at the given position.</param>
+		internal static void DrawAlignedTextInternal(Rect rect, ReadOnlySpan<char> text, Font font,
+			Color32 color, BlitFlags blitFlags, TextAlignment textAlignment, DrawTextFunc drawTextLine)
+		{
+			// Fast-calculate the height of the text, if it matters to do so.
+			double textHeight = 0;
+			if ((textAlignment & TextAlignment.VertMask) > TextAlignment.Top)
+			{
+				int numLines = 1;
+				foreach (char ch in text)
+					if (ch == '\n')
+						numLines++;
+
+				// Simple multiplication to figure out the height of the text.
+				textHeight = numLines * font.Metrics.LineHeight;
+			}
+
+			// Calculate where we're starting the rendering.
+			double y = (textAlignment & TextAlignment.VertMask) switch
+			{
+				TextAlignment.Default => (double)rect.Y,
+				TextAlignment.Top => (double)rect.Y,
+				TextAlignment.Bottom => (double)(rect.Y + rect.Height) - textHeight,
+				TextAlignment.VertCenter => ((double)(rect.Y + rect.Height) - textHeight) * 0.5,
+				TextAlignment.Baseline => (double)rect.Y - font.Metrics.Baseline,
+				_ => (double)rect.Y,
+			};
+
+			for (int i = 0; i < text.Length;)
+			{
+				// Extract the next line.
+				int lineStart = i;
+				while (i < text.Length && text[i] != '\n')
+					i++;
+				int lineLength = i - lineStart;
+				if (i < text.Length && text[i] == '\n')
+					i++;
+				ReadOnlySpan<char> line = text.Slice(lineStart, lineLength);
+
+				// If the horizontal alignment is anything other than default/left,
+				// measure the text so we can properly align it.
+				double textWidth = ((textAlignment & TextAlignment.HorzMask) > TextAlignment.Left)
+					? font.MeasureText(line).X
+					: 0;
+
+				// Calculate where we're starting the rendering.
+				double x = (textAlignment & TextAlignment.HorzMask) switch
+				{
+					TextAlignment.Default => (double)rect.X,
+					TextAlignment.Left => (double)rect.X,
+					TextAlignment.Right => (double)(rect.X + rect.Width) - textWidth,
+					TextAlignment.HorzCenter => ((double)(rect.Y + rect.Width) - textWidth) * 0.5,
+					_ => (double)rect.X,
+				};
+
+				// Draw the next line of text.
+				drawTextLine(new Vector2d(x, y), line, font, color, blitFlags);
+
+				y += font.Metrics.LineHeight;
+			}
+		}
+
+		/// <summary>
+		/// Simple text-drawing routine.  This draws the given text, in the given font,
+		/// aligned as chosen within the given rectangle.  It advances to the right after
+		/// drawing each character.  The '\n' character (code point 10) will advance to
+		/// the next line.  By default, this copies from the font in color-alpha mode,
+		/// so if the font image is properly constructed, the color parameter will
+		/// determine the color of the text.  This doesn't use fancy font shaping, but
+		/// instead just draws left-to-right for each line of text.
+		/// </summary>
+		/// <param name="rect">The containing rectangle for the text.</param>
+		/// <param name="text">The text to draw.</param>
+		/// <param name="font">The font to use to draw the text.</param>
+		/// <param name="color">The color of the text.</param>
+		/// <param name="blitFlags">Which blit mode to use when drawing each glyph.</param>
+		/// <param name="textAlignment">How to align the text relative to the given rectangle.
+		/// The default alignment is to place the text in the top-left corner of the
+		/// given rectangle.</param>
+		public void DrawText(Rect rect, ReadOnlySpan<char> text, Font font,
+			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha,
+			TextAlignment textAlignment = default)
+			=> DrawAlignedTextInternal(rect, text, font, color, blitFlags, textAlignment, DrawText);
+
+		/// <summary>
+		/// Simple text-drawing routine.  This draws the given text, in the given font,
+		/// starting at the given point (for the top-left corner of the text).  It advances
+		/// to the right after drawing each character.  By default, this copies from the
+		/// font in color-alpha mode, so if the font image is properly constructed, the color
+		/// parameter will determine the color of the text.  This doesn't use fancy font
+		/// shaping, but instead just draws left-to-right starting at the given point.
+		/// </summary>
+		/// <param name="point">The top-left corner of the text to draw.</param>
+		/// <param name="text">The text to draw.</param>
+		/// <param name="font">The font to use to draw the text.</param>
+		/// <param name="color">The color of the text.</param>
+		/// <param name="blitFlags">Which blit mode to use when drawing each glyph.</param>
+		/// <returns>The point immediately after the text, where more text would begin.</returns>
+		public Vector2d DrawText(Vector2d point, ReadOnlySpan<char> text, Font font,
+			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha)
+		{
+			double x = point.X;
+			double y = point.Y;
+			double defaultKerning = font.Metrics.DefaultKerning;
+			IReadOnlyDictionary<(int, int), double> kerningPairs = font.Metrics.KerningPairs;
+
+			StringAsUnicode str = new StringAsUnicode(text);
+
+			int ch;
+			int prev = -1;
+
+			while ((ch = str.Next()) >= 0)
+			{
+				// If this is the second character in a kerning pair, adjust kerning.
+				if (kerningPairs.TryGetValue((prev, ch), out double kerningPair))
+					x += kerningPair;
+
+				// Handle whitespace characters specially.
+				if (ch == 32 || ch == 160)
+				{
+					// Space.
+					x += font.Metrics.Space + defaultKerning;
+					prev = ch;
+					continue;
+				}
+
+				// Get the glyph for this character.
+				if (!font.TryGetValue(ch, out Glyph glyph))
+					continue;
+
+				// Actually draw the glyph.
+				Blit(glyph.Image, glyph.X, glyph.Y, (int)(x + 0.5), (int)(y + 0.5),
+					glyph.Width, glyph.Height, blitFlags, color);
+
+				// Move forward past the glyph, plus the default kerning.
+				x += glyph.Width + defaultKerning;
+
+				prev = ch;
+			}
+
+			return new Vector2d(x, y);
+		}
+
+		/// <summary>
+		/// Draw a sequence of custom-positioned (shaped) glyphs.  This allows for highly
+		/// flexible text-shaping, including using sophisticated external libraries to support
+		/// complex orthographies, and is designed to be HarfBuzz-compatible.  This method is
+		/// very powerful, but it doesn't actually do all that much, deferring all of the
+		/// positioning and layout and font-selection logic to the caller.
+		/// </summary>
+		/// <param name="point">The baseline starting point of the text to draw.</param>
+		/// <param name="glyphs">The glyphs to draw, pre-positioned relative to the given point.</param>
+		/// <param name="color">The color of the text.</param>
+		/// <param name="blitFlags">Which blit mode to use when drawing each glyph.</param>
+		public void DrawShapedGlyphs(Vector2d point, IEnumerable<ShapedGlyph> glyphs,
+			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha)
+		{
+			foreach (ShapedGlyph shapedGlyph in glyphs)
+			{
+				Vector2d drawPoint = point + shapedGlyph.Offset;
+				Glyph glyph = shapedGlyph.Glyph;
+				Blit(glyph.Image, glyph.X, glyph.Y, (int)(drawPoint.X + 0.5), (int)(drawPoint.Y + 0.5),
+					glyph.Width, glyph.Height, blitFlags, color);
+				point += shapedGlyph.Advance;
+			}
+		}
+
+		#endregion
+
 		#region Convolutions
 
 		/// <summary>
@@ -6219,6 +6438,73 @@ namespace HalfMaid.Img
 		#endregion
 
 		#region Content transparency testing
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any outer edges that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// be considered non-transparent, while values of this or less will be
+		/// considered transparent.  This defaults to 0, meaning that any pixel with
+		/// any opacity at all will be considered non-transparent.</param>
+		/// <returns>The smallest rectangle that fits the content.</returns>
+		[Pure]
+		public Rect MeasureContent(Rect rect, byte cutoff = 0)
+		{
+			int x = MeasureContentStartX(rect, cutoff);
+			int y = MeasureContentStartY(rect, cutoff);
+			int width = MeasureContentWidth(rect, cutoff);
+			int height = MeasureContentHeight(rect, cutoff);
+
+			return width > 0 && height > 0
+				? new Rect(x, y, width, height)
+				: default;
+		}
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any left-side columns that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// be considered non-transparent, while values of this or less will be
+		/// considered transparent.  This defaults to 0, meaning that any pixel with
+		/// any opacity at all will be considered non-transparent.</param>
+		/// <returns>The farthest right column that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the right edge of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartX(Rect rect, byte cutoff = 0)
+		{
+			for (int x = rect.X; x < rect.X + rect.Width; x++)
+			{
+				if (!IsColumnTransparent(x, rect.Y, rect.Height, cutoff))
+					return x;
+			}
+			return rect.X + rect.Width;
+		}
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any top-edge rows that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// be considered non-transparent, while values of this or less will be
+		/// considered transparent.  This defaults to 0, meaning that any pixel with
+		/// any opacity at all will be considered non-transparent.</param>
+		/// <returns>The farthest down row that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the bottom of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartY(Rect rect, byte cutoff = 0)
+		{
+			for (int y = rect.Y; y < rect.Y + rect.Height; y++)
+			{
+				if (!IsRowTransparent(rect.X, y, rect.Width, cutoff))
+					return y;
+			}
+			return rect.Y + rect.Height;
+		}
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that

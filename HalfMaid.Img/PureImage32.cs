@@ -2199,6 +2199,50 @@ namespace HalfMaid.Img
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any outer edges that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// be considered non-transparent, while values of this or less will be
+		/// considered transparent.  This defaults to 0, meaning that any pixel with
+		/// any opacity at all will be considered non-transparent.</param>
+		/// <returns>The smallest rectangle that fits the content.</returns>
+		[Pure]
+		public Rect MeasureContent(Rect rect, byte cutoff = 0)
+			=> _image.MeasureContent(rect, cutoff);
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any left-side columns that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// be considered non-transparent, while values of this or less will be
+		/// considered transparent.  This defaults to 0, meaning that any pixel with
+		/// any opacity at all will be considered non-transparent.</param>
+		/// <returns>The farthest right column that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the right edge of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartX(Rect rect, byte cutoff = 0)
+			=> _image.MeasureContentStartX(rect, cutoff);
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any top-edge rows that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// be considered non-transparent, while values of this or less will be
+		/// considered transparent.  This defaults to 0, meaning that any pixel with
+		/// any opacity at all will be considered non-transparent.</param>
+		/// <returns>The farthest down row that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the bottom of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartY(Rect rect, byte cutoff = 0)
+			=> _image.MeasureContentStartY(rect, cutoff);
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
 		/// it does not contain any right-side columns that are transparent.
 		/// </summary>
 		/// <param name="rect">The starting rectangle.</param>

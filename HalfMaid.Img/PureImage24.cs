@@ -2140,6 +2140,41 @@ namespace HalfMaid.Img
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any outer edges that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="transparentColor">Which color to consider to be "transparent."</param>
+		/// <returns>The smallest rectangle that fits the content.</returns>
+		[Pure]
+		public Rect MeasureContent(Rect rect, Color24 transparentColor)
+			=> _image.MeasureContent(rect, transparentColor);
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any left-side columns that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="transparentColor">Which color to consider to be "transparent."</param>
+		/// <returns>The farthest right column that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the right edge of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartX(Rect rect, Color24 transparentColor)
+			=> _image.MeasureContentStartX(rect, transparentColor);
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any top-edge rows that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="transparentColor">Which color to consider to be "transparent."</param>
+		/// <returns>The farthest down row that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the bottom of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartY(Rect rect, Color24 transparentColor)
+			=> _image.MeasureContentStartY(rect, transparentColor);
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
 		/// it does not contain any right-side columns that are transparent.
 		/// </summary>
 		/// <param name="rect">The starting rectangle.</param>

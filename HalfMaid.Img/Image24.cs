@@ -1011,6 +1011,34 @@ namespace HalfMaid.Img
 		/// the provided coordinates to perform a safe blit (all pixels outside an image
 		/// will be ignored).
 		/// </summary>
+		/// <param name="srcImage">The source image to copy from.  Each pixel will be promoted to 32-bit RGBA
+		/// by adding an alpha channel whose values are entirely 255.</param>
+		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
+		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="destY">The Y coordinate of the top-left corner in the destination image to start copying to.</param>
+		/// <param name="width">The width of the rectangle of pixels to copy.</param>
+		/// <param name="height">The height of the rectangle of pixels to copy.</param>
+		/// <param name="blitFlags">Flags controlling how the copy is performed.</param>
+		/// <param name="color">The color to use for color-blit modes.</param>
+		public void Blit(IImage srcImage, int srcX, int srcY, int destX, int destY, int width, int height,
+			BlitFlags blitFlags = default, Color32 color = default)
+		{
+			if (srcImage is Image32 image32)
+				Blit(image32, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			else if (srcImage is Image24 image24)
+				Blit(image24, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			else if (srcImage is Image8 image8)
+				Blit(image8, srcX, srcY, destX, destY, width, height, blitFlags, color);
+			else
+				throw new ArgumentException($"Unknown or unsupported image type: {(srcImage?.GetType().Name ?? "null")}");
+		}
+
+		/// <summary>
+		/// Copy from src image rectangle to dest image rectangle, in-place.  This will by default clip
+		/// the provided coordinates to perform a safe blit (all pixels outside an image
+		/// will be ignored).
+		/// </summary>
 		/// <param name="srcImage">The source image to copy from.</param>
 		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
 		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
@@ -5276,6 +5304,64 @@ namespace HalfMaid.Img
 		#endregion
 
 		#region Content transparency testing
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any outer edges that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="transparentColor">Which color to consider to be "transparent."</param>
+		/// <returns>The smallest rectangle that fits the content.</returns>
+		[Pure]
+		public Rect MeasureContent(Rect rect, Color24 transparentColor)
+		{
+			int x = MeasureContentStartX(rect, transparentColor);
+			int y = MeasureContentStartY(rect, transparentColor);
+			int width = MeasureContentWidth(rect, transparentColor);
+			int height = MeasureContentHeight(rect, transparentColor);
+
+			return width > 0 && height > 0
+				? new Rect(x, y, width, height)
+				: default;
+		}
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any left-side columns that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="transparentColor">Which color to consider to be "transparent."</param>
+		/// <returns>The farthest right column that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the right edge of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartX(Rect rect, Color24 transparentColor)
+		{
+			for (int x = rect.X; x < rect.X + rect.Width; x++)
+			{
+				if (!IsColumnTransparent(x, rect.Y, rect.Height, transparentColor))
+					return x;
+			}
+			return rect.X + rect.Width;
+		}
+
+		/// <summary>
+		/// Given a rectangle that contains some content, shrink the rectangle so that
+		/// it does not contain any top-edge rows that are transparent.
+		/// </summary>
+		/// <param name="rect">The starting rectangle.</param>
+		/// <param name="transparentColor">Which color to consider to be "transparent."</param>
+		/// <returns>The farthest down row that surrounds actual non-transparent content
+		/// within the given rectangle, which may be the bottom of the rectangle.</returns>
+		[Pure]
+		public int MeasureContentStartY(Rect rect, Color24 transparentColor)
+		{
+			for (int y = rect.Y; y < rect.Y + rect.Height; y++)
+			{
+				if (!IsRowTransparent(rect.X, y, rect.Width, transparentColor))
+					return y;
+			}
+			return rect.Y + rect.Height;
+		}
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that
