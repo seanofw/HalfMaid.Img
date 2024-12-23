@@ -468,5 +468,23 @@ namespace ImgTest
 
 			UpdateImageWithUndo(Image.ColorTemperature(result.Value), "Color Temperature");
 		}
+
+		private void Orientation_ScaleHq2x_Click(object sender, EventArgs e)
+		{
+			using Hqx hqx = new Hqx();
+			UpdateImageWithUndo(hqx.Scale2x(Image), "Scale hq2x");
+		}
+
+		private void Orientation_ScaleHq3x_Click(object sender, EventArgs e)
+		{
+			using Hqx hqx = new Hqx();
+			UpdateImageWithUndo(hqx.Scale3x(Image), "Scale hq3x");
+		}
+
+		private void Orientation_ScaleHq4x_Click(object sender, EventArgs e)
+		{
+			using Hqx hqx = new Hqx();
+			UpdateImageWithUndo(hqx.Scale4x(Image), "Scale hq4x");
+		}
 	}
 }

@@ -49,6 +49,9 @@
 			Orientation_Rotate90Counterclockwise = new ToolStripMenuItem();
 			Orientation_Rotate180 = new ToolStripMenuItem();
 			Orientation_Separator2 = new ToolStripSeparator();
+			Orientation_ScaleHq2x = new ToolStripMenuItem();
+			Orientation_ScaleHq3x = new ToolStripMenuItem();
+			Orientation_ScaleHq4x = new ToolStripMenuItem();
 			colorToolStripMenuItem = new ToolStripMenuItem();
 			Color_RGBA = new ToolStripMenuItem();
 			Color_Paletted = new ToolStripMenuItem();
@@ -64,6 +67,7 @@
 			Effects_Menu = new ToolStripMenuItem();
 			Effects_BrightnessContrast = new ToolStripMenuItem();
 			Effects_HueSaturationBrightness = new ToolStripMenuItem();
+			Effects_ColorTemperature = new ToolStripMenuItem();
 			Effects_Gamma = new ToolStripMenuItem();
 			toolStripMenuItem7 = new ToolStripSeparator();
 			Effects_Grayscale = new ToolStripMenuItem();
@@ -79,7 +83,6 @@
 			Effects_EdgeDetect = new ToolStripMenuItem();
 			View_Menu = new ToolStripMenuItem();
 			Help_Menu = new ToolStripMenuItem();
-			Effects_ColorTemperature = new ToolStripMenuItem();
 			((System.ComponentModel.ISupportInitialize)ImageBox).BeginInit();
 			MenuStrip.SuspendLayout();
 			SuspendLayout();
@@ -188,7 +191,7 @@
 			// 
 			// Orientation_Menu
 			// 
-			Orientation_Menu.DropDownItems.AddRange(new ToolStripItem[] { Orientation_FlipHorizontally, Orientation_FlipVertically, Orientation_Separator1, Orientation_Rotate90Clockwise, Orientation_Rotate90Counterclockwise, Orientation_Rotate180, Orientation_Separator2 });
+			Orientation_Menu.DropDownItems.AddRange(new ToolStripItem[] { Orientation_FlipHorizontally, Orientation_FlipVertically, Orientation_Separator1, Orientation_Rotate90Clockwise, Orientation_Rotate90Counterclockwise, Orientation_Rotate180, Orientation_Separator2, Orientation_ScaleHq2x, Orientation_ScaleHq3x, Orientation_ScaleHq4x });
 			Orientation_Menu.Name = "Orientation_Menu";
 			Orientation_Menu.Size = new Size(79, 20);
 			Orientation_Menu.Text = "&Orientation";
@@ -237,6 +240,27 @@
 			// 
 			Orientation_Separator2.Name = "Orientation_Separator2";
 			Orientation_Separator2.Size = new Size(222, 6);
+			// 
+			// Orientation_ScaleHq2x
+			// 
+			Orientation_ScaleHq2x.Name = "Orientation_ScaleHq2x";
+			Orientation_ScaleHq2x.Size = new Size(225, 22);
+			Orientation_ScaleHq2x.Text = "Scale hq2x";
+			Orientation_ScaleHq2x.Click += Orientation_ScaleHq2x_Click;
+			// 
+			// Orientation_ScaleHq3x
+			// 
+			Orientation_ScaleHq3x.Name = "Orientation_ScaleHq3x";
+			Orientation_ScaleHq3x.Size = new Size(225, 22);
+			Orientation_ScaleHq3x.Text = "Scale hq3x";
+			Orientation_ScaleHq3x.Click += Orientation_ScaleHq3x_Click;
+			// 
+			// Orientation_ScaleHq4x
+			// 
+			Orientation_ScaleHq4x.Name = "Orientation_ScaleHq4x";
+			Orientation_ScaleHq4x.Size = new Size(225, 22);
+			Orientation_ScaleHq4x.Text = "Scale hq4x";
+			Orientation_ScaleHq4x.Click += Orientation_ScaleHq4x_Click;
 			// 
 			// colorToolStripMenuItem
 			// 
@@ -338,6 +362,13 @@
 			Effects_HueSaturationBrightness.Text = "&Hue/Saturation/Brightness...";
 			Effects_HueSaturationBrightness.Click += Effects_HueSaturationBrightness_Click;
 			// 
+			// Effects_ColorTemperature
+			// 
+			Effects_ColorTemperature.Name = "Effects_ColorTemperature";
+			Effects_ColorTemperature.Size = new Size(224, 22);
+			Effects_ColorTemperature.Text = "Color &Temperature...";
+			Effects_ColorTemperature.Click += Effects_ColorTemperature_Click;
+			// 
 			// Effects_Gamma
 			// 
 			Effects_Gamma.Name = "Effects_Gamma";
@@ -435,13 +466,6 @@
 			Help_Menu.Size = new Size(44, 20);
 			Help_Menu.Text = "&Help";
 			// 
-			// Effects_ColorTemperature
-			// 
-			Effects_ColorTemperature.Name = "Effects_ColorTemperature";
-			Effects_ColorTemperature.Size = new Size(224, 22);
-			Effects_ColorTemperature.Text = "Color &Temperature...";
-			Effects_ColorTemperature.Click += Effects_ColorTemperature_Click;
-			// 
 			// MainForm
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
@@ -514,5 +538,8 @@
 		private ToolStripMenuItem Effects_GaussianBlur;
 		private ToolStripSeparator toolStripMenuItem8;
 		private ToolStripMenuItem Effects_ColorTemperature;
+		private ToolStripMenuItem Orientation_ScaleHq2x;
+		private ToolStripMenuItem Orientation_ScaleHq3x;
+		private ToolStripMenuItem Orientation_ScaleHq4x;
 	}
 }
