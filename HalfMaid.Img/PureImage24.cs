@@ -600,6 +600,52 @@ namespace HalfMaid.Img
 
 		#endregion
 
+		#region Rescaling
+
+		/// <summary>
+		/// Scale the given image to 2x its original size using the Hq2x algorithm.
+		/// </summary>
+		/// <returns>A new image that contains the original pixels, scaled by 2x.</returns>
+		/// <remarks>
+		/// This is less efficient than instantiating an Hqx class and managing its
+		/// lifetime yourself, but as a single call, it's very easy to use.
+		/// </remarks>
+		public PureImage24 Hq2x()
+		{
+			using Hqx hqx = new Hqx();
+			return hqx.Scale2x(this);
+		}
+
+		/// <summary>
+		/// Scale the given image to 3x its original size using the Hq3x algorithm.
+		/// </summary>
+		/// <returns>A new image that contains the original pixels, scaled by 3x.</returns>
+		/// <remarks>
+		/// This is less efficient than instantiating an Hqx class and managing its
+		/// lifetime yourself, but as a single call, it's very easy to use.
+		/// </remarks>
+		public PureImage24 Hq3x()
+		{
+			using Hqx hqx = new Hqx();
+			return hqx.Scale3x(this);
+		}
+
+		/// <summary>
+		/// Scale the given image to 4x its original size using the Hq4x algorithm.
+		/// </summary>
+		/// <returns>A new image that contains the original pixels, scaled by 4x.</returns>
+		/// <remarks>
+		/// This is less efficient than instantiating an Hqx class and managing its
+		/// lifetime yourself, but as a single call, it's very easy to use.
+		/// </remarks>
+		public PureImage24 Hq4x()
+		{
+			using Hqx hqx = new Hqx();
+			return hqx.Scale4x(this);
+		}
+
+		#endregion
+
 		#region Clipping helpers
 
 		/// <summary>

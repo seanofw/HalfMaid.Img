@@ -18,7 +18,7 @@ namespace HalfMaid.Img
 	/// most operations on this class do not interact with the color table.
 	/// </summary>
 	[DebuggerDisplay("Image8 {Width}x{Height}")]
-	public class Image8 : IImage<byte>
+	public sealed class Image8 : IImage<byte>
 	{
 		#region Core properties and fields
 

@@ -6,7 +6,7 @@ namespace HalfMaid.Img
 	/// This class contains various standard palettes to make it easier to
 	/// dither or map to various common targets.
 	/// </summary>
-	public class Palettes
+	public static class Palettes
 	{
 		#region Grayscale palettes
 

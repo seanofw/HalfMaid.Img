@@ -600,6 +600,58 @@ namespace HalfMaid.Img
 
 		#endregion
 
+		#region Rescaling
+
+		/// <summary>
+		/// Scale the given image to 2x its original size using the Hq2x algorithm.
+		/// </summary>
+		/// <param name="includeAlpha">Whether to consider alpha differences when comparing
+		/// colors (true) or to ignore the alpha channel (false).</param>
+		/// <returns>A new image that contains the original pixels, scaled by 2x.</returns>
+		/// <remarks>
+		/// This is less efficient than instantiating an Hqx class and managing its
+		/// lifetime yourself, but as a single call, it's very easy to use.
+		/// </remarks>
+		public PureImage32 Scale2x(bool includeAlpha = true)
+		{
+			using Hqx hqx = new Hqx();
+			return hqx.Scale2x(this, includeAlpha);
+		}
+
+		/// <summary>
+		/// Scale the given image to 3x its original size using the Hq3x algorithm.
+		/// </summary>
+		/// <param name="includeAlpha">Whether to consider alpha differences when comparing
+		/// colors (true) or to ignore the alpha channel (false).</param>
+		/// <returns>A new image that contains the original pixels, scaled by 3x.</returns>
+		/// <remarks>
+		/// This is less efficient than instantiating an Hqx class and managing its
+		/// lifetime yourself, but as a single call, it's very easy to use.
+		/// </remarks>
+		public PureImage32 Scale3x(bool includeAlpha = true)
+		{
+			using Hqx hqx = new Hqx();
+			return hqx.Scale3x(this, includeAlpha);
+		}
+
+		/// <summary>
+		/// Scale the given image to 4x its original size using the Hq4x algorithm.
+		/// </summary>
+		/// <param name="includeAlpha">Whether to consider alpha differences when comparing
+		/// colors (true) or to ignore the alpha channel (false).</param>
+		/// <returns>A new image that contains the original pixels, scaled by 4x.</returns>
+		/// <remarks>
+		/// This is less efficient than instantiating an Hqx class and managing its
+		/// lifetime yourself, but as a single call, it's very easy to use.
+		/// </remarks>
+		public PureImage32 Scale4x(bool includeAlpha = true)
+		{
+			using Hqx hqx = new Hqx();
+			return hqx.Scale4x(this, includeAlpha);
+		}
+
+		#endregion
+
 		#region Clipping helpers
 
 		/// <summary>
