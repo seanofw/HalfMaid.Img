@@ -7,8 +7,9 @@ namespace HalfMaid.Img
 {
 	/// <summary>
 	/// A 2D integer-valued rectangle.  This uses the (x,y) to +(width,height) form,
-	/// where Box2i represents a rectangle as (x1,y1) to (x2,y2).  This form is often
-	/// easier to work with, which is why the library prefers it for most operations.
+	/// where Box2i (where available) represents a rectangle as (x1,y1) to (x2,y2).
+	/// This form is often easier to work with, which is why the HalfMaid.Img library
+	/// prefers it for most operations.
 	/// </summary>
 	public struct Rect : IEquatable<Rect>
 	{
