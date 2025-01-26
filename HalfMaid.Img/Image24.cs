@@ -933,45 +933,76 @@ namespace HalfMaid.Img
 		#region Rescaling
 
 		/// <summary>
-		/// Scale the given image to 2x its original size using the Hq2x algorithm.
+		/// Scale the given image to 2x its original size using the given pixel scaling algorithm.
 		/// </summary>
+		/// <param name="pixelScaler">Which pixel scaling algorithm to use.</param>
 		/// <returns>A new image that contains the original pixels, scaled by 2x.</returns>
 		/// <remarks>
-		/// This is less efficient than instantiating an Hqx class and managing its
+		/// This is less efficient than instantiating, say, an Hqx class and managing its
 		/// lifetime yourself, but as a single call, it's very easy to use.
 		/// </remarks>
-		public Image24 Hq2x()
+		public Image24 Scale2x(PixelScaler pixelScaler)
 		{
-			using Hqx hqx = new Hqx();
-			return hqx.Scale2x(this);
+			switch (pixelScaler)
+			{
+				case PixelScaler.NearestNeighbor:
+					return Pure.Resize(Size * 2).DangerouslyUnwrap();
+
+				case PixelScaler.Hqx:
+					using (Hqx hqx = new Hqx())
+						return hqx.Scale2x(this);
+
+				default:
+					throw new ArgumentException($"Unknown image scaler '{pixelScaler}'");
+			}
 		}
 
 		/// <summary>
-		/// Scale the given image to 3x its original size using the Hq3x algorithm.
+		/// Scale the given image to 3x its original size using the given pixel scaling algorithm.
 		/// </summary>
+		/// <param name="pixelScaler">Which pixel scaling algorithm to use.</param>
 		/// <returns>A new image that contains the original pixels, scaled by 3x.</returns>
 		/// <remarks>
-		/// This is less efficient than instantiating an Hqx class and managing its
+		/// This is less efficient than instantiating, say, an Hqx class and managing its
 		/// lifetime yourself, but as a single call, it's very easy to use.
 		/// </remarks>
-		public Image24 Hq3x()
+		public Image24 Scale3x(PixelScaler pixelScaler)
 		{
-			using Hqx hqx = new Hqx();
-			return hqx.Scale3x(this);
+			switch (pixelScaler)
+			{
+				case PixelScaler.NearestNeighbor:
+					return Pure.Resize(Size * 3).DangerouslyUnwrap();
+
+				case PixelScaler.Hqx:
+					using (Hqx hqx = new Hqx())
+						return hqx.Scale3x(this);
+				default:
+					throw new ArgumentException($"Unknown image scaler '{pixelScaler}'");
+			}
 		}
 
 		/// <summary>
-		/// Scale the given image to 4x its original size using the Hq4x algorithm.
+		/// Scale the given image to 4x its original size using the given pixel scaling algorithm.
 		/// </summary>
+		/// <param name="pixelScaler">Which pixel scaling algorithm to use.</param>
 		/// <returns>A new image that contains the original pixels, scaled by 4x.</returns>
 		/// <remarks>
-		/// This is less efficient than instantiating an Hqx class and managing its
+		/// This is less efficient than instantiating, say, an Hqx class and managing its
 		/// lifetime yourself, but as a single call, it's very easy to use.
 		/// </remarks>
-		public Image24 Hq4x()
+		public Image24 Scale4x(PixelScaler pixelScaler)
 		{
-			using Hqx hqx = new Hqx();
-			return hqx.Scale4x(this);
+			switch (pixelScaler)
+			{
+				case PixelScaler.NearestNeighbor:
+					return Pure.Resize(Size * 4).DangerouslyUnwrap();
+
+				case PixelScaler.Hqx:
+					using (Hqx hqx = new Hqx())
+						return hqx.Scale3x(this);
+				default:
+					throw new ArgumentException($"Unknown image scaler '{pixelScaler}'");
+			}
 		}
 
 		#endregion

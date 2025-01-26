@@ -304,6 +304,16 @@ namespace HalfMaid.Img
 		PureImage24 Clone()
 			=> _image.Clone();
 
+		/// <summary>
+		/// Extract the internal image reference directly.  There *can* be use cases
+		/// for this in high-performance situations, but as its name implies, it's
+		/// dangerous, because it gives you direct access to the image, which can
+		/// violate purity semantics.
+		/// </summary>
+		/// <returns>The raw Image24 contained within this PureImage24.</returns>
+		public Image24 DangerouslyUnwrap()
+			=> _image;
+
 		#endregion
 
 		#region Image loading/saving
@@ -603,46 +613,40 @@ namespace HalfMaid.Img
 		#region Rescaling
 
 		/// <summary>
-		/// Scale the given image to 2x its original size using the Hq2x algorithm.
+		/// Scale the given image to 2x its original size using the given pixel scaling algorithm.
 		/// </summary>
+		/// <param name="pixelScaler">Which pixel scaling algorithm to use.</param>
 		/// <returns>A new image that contains the original pixels, scaled by 2x.</returns>
 		/// <remarks>
-		/// This is less efficient than instantiating an Hqx class and managing its
+		/// This is less efficient than instantiating, say, an Hqx class and managing its
 		/// lifetime yourself, but as a single call, it's very easy to use.
 		/// </remarks>
-		public PureImage24 Hq2x()
-		{
-			using Hqx hqx = new Hqx();
-			return hqx.Scale2x(this);
-		}
+		public PureImage24 Scale2x(PixelScaler pixelScaler)
+			=> _image.Scale2x(pixelScaler);
 
 		/// <summary>
-		/// Scale the given image to 3x its original size using the Hq3x algorithm.
+		/// Scale the given image to 3x its original size using the given pixel scaling algorithm.
 		/// </summary>
+		/// <param name="pixelScaler">Which pixel scaling algorithm to use.</param>
 		/// <returns>A new image that contains the original pixels, scaled by 3x.</returns>
 		/// <remarks>
-		/// This is less efficient than instantiating an Hqx class and managing its
+		/// This is less efficient than instantiating, say, an Hqx class and managing its
 		/// lifetime yourself, but as a single call, it's very easy to use.
 		/// </remarks>
-		public PureImage24 Hq3x()
-		{
-			using Hqx hqx = new Hqx();
-			return hqx.Scale3x(this);
-		}
+		public PureImage24 Scale3x(PixelScaler pixelScaler)
+			=> _image.Scale3x(pixelScaler);
 
 		/// <summary>
-		/// Scale the given image to 4x its original size using the Hq4x algorithm.
+		/// Scale the given image to 4x its original size using the given pixel scaling algorithm.
 		/// </summary>
+		/// <param name="pixelScaler">Which pixel scaling algorithm to use.</param>
 		/// <returns>A new image that contains the original pixels, scaled by 4x.</returns>
 		/// <remarks>
-		/// This is less efficient than instantiating an Hqx class and managing its
+		/// This is less efficient than instantiating, say, an Hqx class and managing its
 		/// lifetime yourself, but as a single call, it's very easy to use.
 		/// </remarks>
-		public PureImage24 Hq4x()
-		{
-			using Hqx hqx = new Hqx();
-			return hqx.Scale4x(this);
-		}
+		public PureImage24 Scale4x(PixelScaler pixelScaler)
+			=> _image.Scale4x(pixelScaler);
 
 		#endregion
 

@@ -69,7 +69,7 @@ There are a few core design principles in this library:
 
 3. **Batteries included.** \
     \
-    In most imaging libraries, flipping an image horizontally requires an astonishing amount of code:  Make a graphics surface, calculate a transformation matrix, allocate storage, render the image transformed, cleanup, and on and on.  This is insanity.  It should be — and here it _is_ — no harder than calling `FlipHorz()`.  Want to draw on your images?  `DrawLine()`, `FillRect()`, `DrawBezier()`, it's all built-in.  Need to convert between image formats?  Look no farther than `ToImage32()` or `Quantize()` and `Dither()`.  Trying to load or save an image?  Call `Image32.Load()` or `myImage.Save()`.  Yes, it's less flexible than a giant rendering pipeline — but it covers 99% of the cases you'll ever run into, you can do it in one line of code.
+    In most imaging libraries, flipping an image horizontally requires an astonishing amount of code:  Make a graphics surface, calculate a transformation matrix, allocate storage, render the image transformed, cleanup, and on and on.  This is insanity.  It should be — and here it _is_ — no harder than calling `FlipHorz()`.  Want to draw on your images?  `DrawLine()`, `FillRect()`, `DrawBezier()`, `DrawText()`, it's all built-in.  Need to convert between image formats?  Look no farther than `ToImage32()` or `Quantize()` and `Dither()`.  Trying to load or save an image?  Call `Image32.Load()` or `myImage.Save()`.  Yes, it's less flexible than a giant rendering pipeline — but it covers 99% of the cases you'll ever run into, you can do it in one line of code.
 
 4. **As fast as possible, without violating rule #1.** \
     \
@@ -113,7 +113,7 @@ Nuget is your friend.
 * **HalfMaid.Img.OpenGL** - This adds `Texture32` and `Texture8`, which do exactly what you think they do.
 * **HalfMaid.Img.Gdi** - This adds various Windows-flavored extension methods on `Image32` and `Image8` and `Bitmap` too, as well as the `ClipboardImage` class.
 
-This library has an external dependency on the **OpenTK.Mathematics** Nuget package.  Which, honestly, you should be using anyway because it's awesome, much nicer than System.Numerics for all of your vector/matrix needs.  For old platforms like .NET Framework 4.x, we _embed a full port_ of **OpenTK.Mathematics** and various newer `System` classes so that you can use `HalfMaid.Img` exactly the same way — no compromises, no tweaks.
+This library has an external dependency on the **OpenTK.Mathematics** Nuget package.  Which, honestly, you should be using anyway because it's awesome, and much nicer than `System.Numerics` for all of your vector/matrix needs.  For old platforms like .NET Framework 4.x, we _embed a full port_ of `OpenTK.Mathematics` and various newer `System` classes so that you can use `HalfMaid.Img` exactly the same way — no compromises, no tweaks.
 
 -----------------------------------------------------------------------------
 
@@ -139,6 +139,8 @@ These are the classes you're going to work with a lot in this library:
     \
     Just like `Image32`, this has dozens and dozens of methods for manipulating its pixels, and sensible operator overloads, and `Load()` and `Save()` and all the rest.
 
+If you need to treat images similarly regardless of their underlying pixel format, the above classes implement an `IImage` interface.  It's usually better to work with the concrete classes, but you can be abstract if you need to be.
+
 ### Rational API
 
 Are you working in F#?  Or do you just really like immutable data structures?  We've got you covered too!
@@ -149,15 +151,18 @@ Are you working in F#?  Or do you just really like immutable data structures?  W
 
 * **PureImage8**.  Like `Image8`, but the pure, immutable version.
 
+And there's also an `IPureImage` that the above classes implement.
+
+
 ### Other classes
 
 There are *lots* more classes in this library.  Here are a few others that might be worth knowing about:
 
-* **IImage**.  This is an interface shared by both `Image32`, `Image24`, and `Image8` so that you can have a single shape to describe all of them.
-
 * **IImageLoader**/**IImageSaver**.  These interfaces describe classes that know how to load or save image files in a specific file format.
 
 * **Rect**.  This is a `struct`, and it has an `int X`, an `int Y`, an `int Width`, and an `int Height`.  OpenTK.Mathematics gives us a `Box2i`, but that's often a less convenient structure than `Rect` for common drawing operations, so we include an integer-valued `struct Rect`.  It includes several dozen methods and operators for working with it easily and interoperating with `Box2i` and `Vector2i`.
+
+* **Rectd**.  This is a `struct`, and it has a `double X`, a `double Y`, a `double Width`, and a `double Height`.
 
 * **Palettes**.  Just like `Color32/24` include common color names, the `Palettes` class includes static instances of common 8-bit palettes so you don't have to roll your own.
 
@@ -167,7 +172,7 @@ There are *lots* more classes in this library.  Here are a few others that might
 
 ## Image operations
 
-This library has _lots_ of common image operations are built in.  Here's a table of the supported operations, with short summaries for each.  (This table is a _summary_:  For full details on method parameters, return values, and exceptions, you should refer to the extensive API reference documentation / Intellisense documentation.)
+This library has _lots_ of common image operations built in.  Here's a table of the supported operations, with short summaries for each.  (This table is a _summary_:  For full details on method parameters, return values, and exceptions, you should refer to the extensive API reference documentation / Intellisense documentation.)
 
 Note that constructors are documented separately below:  Each class includes several constructors, but the constructors differ substantially between classes because of the differences in their underlying data formats and semantics.
 
@@ -217,6 +222,9 @@ Note that constructors are documented separately below:  Each class includes sev
 | `Resample()` | 32, 24, P32, P24 | Resize an image using a resampling filter like bilinear or B-spline or Lanczos. |
 | `ResampleToFit()` | 32, 24, P32, P24 | Resample to fit inside the given container, maintaining aspect ratio. |
 | static `Fit()` | 32, 24, 8, P32, P24, P8 | Calculate best-fit inside a given container, maintaining aspect ratio. |
+| `Scale2x()` | 32, 24, P32, P24 | Resize an image 2x using a pixel-art scaler. |
+| `Scale3x()` | 32, 24, P32, P24 | Resize an image 3x using a pixel-art scaler. |
+| `Scale4x()` | 32, 24, P32, P24 | Resize an image 4x using a pixel-art scaler. |
 
 ### Blitting and cropping
 
@@ -389,6 +397,8 @@ There are *lots* of ways to create an image object, including creating both empt
 
 `PureImage32` also provides casting operators to/from `Image32`:  `Image32` --&gt; `PureImage32` is implicit, and `PureImage32` --&gt; `Image32` is explicit.
 
+`PureImage32` also provides `DangerouslyUnwrap()`, which provides direct access to its internal `Image32` instance for specialized high-speed use cases.
+
 | Name | Description |
 | ---- | ----------- |
 | `Image24(int, int)` | Construct an image of the given size (filled Transparent). |
@@ -407,6 +417,8 @@ There are *lots* of ways to create an image object, including creating both empt
 `PureImage24` includes all of the above, as well as `PureImage24(Image24)`, which wraps the given `Image24` instance in a `PureImage24` struct.
 
 `PureImage24` also provides casting operators to/from `Image24`:  `Image24` --&gt; `PureImage24` is implicit, and `PureImage24` --&gt; `Image24` is explicit.
+
+`PureImage24` also provides `DangerouslyUnwrap()`, which provides direct access to its internal `Image24` instance for specialized high-speed use cases.
 
 | Name | Description |
 | ---- | ----------- |
@@ -428,6 +440,8 @@ There are *lots* of ways to create an image object, including creating both empt
 `PureImage8` includes all of the above, as well as `PureImage8(Image8)`, which wraps the given `Image8` instance in a `PureImage8` struct.
 
 `PureImage8` also provides casting operators to/from `Image8`:  `Image8` --&gt; `PureImage8` is implicit, and `PureImage8` --&gt; `Image8` is explicit.
+
+`PureImage8` also provides `DangerouslyUnwrap()`, which provides direct access to its internal `Image8` instance for specialized high-speed use cases.
 
 -----------------------------------------------------------------------------
 
@@ -703,6 +717,13 @@ You may combine these with flags that describe how to resample at the edges of t
 * `Wrap` - Combination of all `Wrap` flags.
 
 The `Back` flags generally cause the resampler to reverse direction at the edge and continue sampling backwards into the image, while the `Wrap` flags generally cause the sampler to wrap to pixels on the opposite edge.
+
+### Pixel-scaling algorithms
+
+These algorithms are available for the `Scale2x()`, `Scale3x()` and `Scale4x()` methods.
+
+* `NearestNeighbor` - Simple nearest-neighbor upscaling (i.e., just duplicating pixels).
+* `Hqx` - The [HQX](https://en.wikipedia.org/wiki/Hqx_(algorithm)) pixel-scaling algorithm in its 2x, 3x, or 4x form.  This uses a derivative of [Clément Bœsch's clean-room implementation](https://blog.pkh.me/p/19-butchering-hqx-scaling-filters.html) of the algorithm.
 
 -----------------------------------------------------------------------------
 
