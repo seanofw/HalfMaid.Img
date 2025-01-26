@@ -6,7 +6,9 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using HalfMaid.Img.FileFormats;
+using HalfMaid.Img.Fonts;
 using OpenTK.Mathematics;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace HalfMaid.Img
 {
@@ -2101,6 +2103,80 @@ namespace HalfMaid.Img
 
 		#endregion
 
+		#region Text drawing
+
+		/// <summary>
+		/// Simple text-drawing-with-alignment routine.  This draws the given text, in the
+		/// given font, aligned as chosen within the given rectangle.  It advances to the
+		/// right after drawing each character.  The '\n' character (code point 10) will
+		/// advance to the next line.  By default, this copies from the font in color-alpha
+		/// mode, so if the font image is properly constructed, the color parameter will
+		/// determine the color of the text.  This doesn't use fancy font shaping, but
+		/// instead just draws left-to-right within each line of text, and top-to-bottom
+		/// for successive lines.
+		/// </summary>
+		/// <param name="rect">The containing rectangle for the text.</param>
+		/// <param name="text">The text to draw.</param>
+		/// <param name="font">The font to use to draw the text.</param>
+		/// <param name="color">The color of the text.</param>
+		/// <param name="blitFlags">Which blit mode to use when drawing each glyph.</param>
+		/// <param name="textAlignment">How to align the text relative to the given rectangle.
+		/// The default alignment is to place the text in the top-left corner of the
+		/// given rectangle.</param>
+		/// <returns>The new image with the text drawn on it.</returns>
+		public PureImage32 DrawText(Rectd rect, ReadOnlySpan<char> text, Font font,
+			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha,
+			TextAlignment textAlignment = default)
+		{
+			Image32 clone = _image.Clone();
+			clone.DrawText(rect, text, font, color, blitFlags, textAlignment);
+			return clone;
+		}
+
+		/// <summary>
+		/// Simple text-drawing routine.  This draws the given text, in the given font,
+		/// starting at the given point (for the top-left corner of the text).  It advances
+		/// to the right after drawing each character.  By default, this copies from the
+		/// font in color-alpha mode, so if the font image is properly constructed, the color
+		/// parameter will determine the color of the text.  This doesn't use fancy font
+		/// shaping, but instead just draws left-to-right starting at the given point.
+		/// </summary>
+		/// <param name="point">The top-left corner of the text to draw.</param>
+		/// <param name="text">The text to draw.</param>
+		/// <param name="font">The font to use to draw the text.</param>
+		/// <param name="color">The color of the text.</param>
+		/// <param name="blitFlags">Which blit mode to use when drawing each glyph.</param>
+		/// <returns>The new image with the text drawn on it.</returns>
+		public PureImage32 DrawText(Vector2d point, ReadOnlySpan<char> text, Font font,
+			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha)
+		{
+			Image32 clone = _image.Clone();
+			clone.DrawText(point, text, font, color, blitFlags);
+			return clone;
+		}
+
+		/// <summary>
+		/// Draw a sequence of positioned (and fully shaped) glyphs.  This allows for highly
+		/// flexible text-shaping, including using sophisticated external libraries to support
+		/// complex orthographies, and is designed to be roughly HarfBuzz-compatible.  This
+		/// method is very powerful, but it doesn't actually do all that much, deferring all
+		/// of the positioning and layout and font-selection logic to the caller.
+		/// </summary>
+		/// <param name="point">The starting point for drawing the glyphs.</param>
+		/// <param name="glyphs">The glyphs to draw, pre-positioned relative to the given point.</param>
+		/// <param name="color">The color of the text.</param>
+		/// <param name="blitFlags">Which blit mode to use when drawing each glyph.</param>
+		/// <returns>The new image with the text drawn on it.</returns>
+		public PureImage32 DrawText(Vector2d point, IEnumerable<PositionedGlyph> glyphs,
+			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha)
+		{
+			Image32 clone = _image.Clone();
+			clone.DrawText(point, glyphs, color, blitFlags);
+			return clone;
+		}
+
+		#endregion
+
 		#region Convolutions
 
 		/// <summary>
@@ -2258,74 +2334,74 @@ namespace HalfMaid.Img
 		/// it does not contain any outer edges that are transparent.
 		/// </summary>
 		/// <param name="rect">The starting rectangle.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>The smallest rectangle that fits the content.</returns>
 		[Pure]
-		public Rect MeasureContent(Rect rect, byte cutoff = 0)
-			=> _image.MeasureContent(rect, cutoff);
+		public Rect MeasureContent(Rect rect, byte alphaCutoff = 0)
+			=> _image.MeasureContent(rect, alphaCutoff);
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that
 		/// it does not contain any left-side columns that are transparent.
 		/// </summary>
 		/// <param name="rect">The starting rectangle.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>The farthest right column that surrounds actual non-transparent content
 		/// within the given rectangle, which may be the right edge of the rectangle.</returns>
 		[Pure]
-		public int MeasureContentStartX(Rect rect, byte cutoff = 0)
-			=> _image.MeasureContentStartX(rect, cutoff);
+		public int MeasureContentStartX(Rect rect, byte alphaCutoff = 0)
+			=> _image.MeasureContentStartX(rect, alphaCutoff);
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that
 		/// it does not contain any top-edge rows that are transparent.
 		/// </summary>
 		/// <param name="rect">The starting rectangle.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>The farthest down row that surrounds actual non-transparent content
 		/// within the given rectangle, which may be the bottom of the rectangle.</returns>
 		[Pure]
-		public int MeasureContentStartY(Rect rect, byte cutoff = 0)
-			=> _image.MeasureContentStartY(rect, cutoff);
+		public int MeasureContentStartY(Rect rect, byte alphaCutoff = 0)
+			=> _image.MeasureContentStartY(rect, alphaCutoff);
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that
 		/// it does not contain any right-side columns that are transparent.
 		/// </summary>
 		/// <param name="rect">The starting rectangle.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>The smallest width that surrounds actual non-transparent content
 		/// within the given rectangle, which may be the original width.</returns>
 		[Pure]
-		public int MeasureContentWidth(Rect rect, byte cutoff = 0)
-			=> _image.MeasureContentWidth(rect, cutoff);
+		public int MeasureContentWidth(Rect rect, byte alphaCutoff = 0)
+			=> _image.MeasureContentWidth(rect, alphaCutoff);
 
 		/// <summary>
 		/// Given a rectangle that contains some content, shrink the rectangle so that
 		/// it does not contain any bottom rows that are transparent.
 		/// </summary>
 		/// <param name="rect">The starting rectangle.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>The smallest height that surrounds actual non-transparent content
 		/// within that rectangle, which may be the original height.</returns>
 		[Pure]
-		public int MeasureContentHeight(Rect rect, byte cutoff = 0)
-			=> _image.MeasureContentHeight(rect, cutoff);
+		public int MeasureContentHeight(Rect rect, byte alphaCutoff = 0)
+			=> _image.MeasureContentHeight(rect, alphaCutoff);
 
 		/// <summary>
 		/// Determine if the given rectangle is entirely transparent.  Pixels outside
@@ -2333,15 +2409,15 @@ namespace HalfMaid.Img
 		/// rectangle will as well.
 		/// </summary>
 		/// <param name="rect">The rectangle of pixels to test.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>True if the row is entirely transparent, false if it contains at
 		/// least one opaque or transparent pixel.</returns>
 		[Pure]
-		public bool IsRectTransparent(Rect rect, byte cutoff = 0)
-			=> _image.IsRectTransparent(rect, cutoff);
+		public bool IsRectTransparent(Rect rect, byte alphaCutoff = 0)
+			=> _image.IsRectTransparent(rect, alphaCutoff);
 
 		/// <summary>
 		/// Determine if the row of pixels starting at (x, y) and of the given width
@@ -2351,15 +2427,15 @@ namespace HalfMaid.Img
 		/// <param name="x">The starting X offset of the row.</param>
 		/// <param name="y">The vertical offset of the row.</param>
 		/// <param name="width">The row's width in pixels.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>True if the row is entirely transparent, false if it contains at
 		/// least one opaque or transparent pixel.</returns>
 		[Pure]
-		public bool IsRowTransparent(int x, int y, int width, byte cutoff = 0)
-			=> _image.IsRowTransparent(x, y, width, cutoff);
+		public bool IsRowTransparent(int x, int y, int width, byte alphaCutoff = 0)
+			=> _image.IsRowTransparent(x, y, width, alphaCutoff);
 
 		/// <summary>
 		/// Determine if the column of pixels starting at (x, y) and of the given height
@@ -2369,15 +2445,15 @@ namespace HalfMaid.Img
 		/// <param name="x">The horizontal offset of the column.</param>
 		/// <param name="y">The starting Y offset of the column.</param>
 		/// <param name="height">The column's height in pixels.</param>
-		/// <param name="cutoff">The transparency cutoff; values greater than this will
+		/// <param name="alphaCutoff">The transparency cutoff; values greater than this will
 		/// be considered non-transparent, while values of this or less will be
 		/// considered transparent.  This defaults to 0, meaning that any pixel with
 		/// any opacity at all will be considered non-transparent.</param>
 		/// <returns>True if the column is entirely transparent, false if it contains at
 		/// least one opaque or transparent pixel.</returns>
 		[Pure]
-		public bool IsColumnTransparent(int x, int y, int height, byte cutoff = 0)
-			=> _image.IsColumnTransparent(x, y, height, cutoff);
+		public bool IsColumnTransparent(int x, int y, int height, byte alphaCutoff = 0)
+			=> _image.IsColumnTransparent(x, y, height, alphaCutoff);
 
 		#endregion
 
