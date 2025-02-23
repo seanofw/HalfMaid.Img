@@ -68,7 +68,7 @@ namespace HalfMaid.Img
 		/// <param name="format">The image format to produce.</param>
 		/// <param name="options">Options specific to this file format, if appropriate.</param>
 		/// <returns>An array of bytes that represents the image in the given file format.</returns>
-		byte[] SaveFile(ImageFormat format, IFileSaveOptions? options = null);
+		byte[] SaveToBytes(ImageFormat format, IFileSaveOptions? options = null);
 	}
 
 	/// <summary>

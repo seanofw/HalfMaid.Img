@@ -60,5 +60,25 @@ namespace HalfMaid.Img.Fonts
 		/// Fully center the text within the given box.
 		/// </summary>
 		Center = HorzCenter | VertCenter,
+
+		/// <summary>
+		/// Top left corner.
+		/// </summary>
+		TopLeft = Top | Left,
+
+		/// <summary>
+		/// Top right corner.
+		/// </summary>
+		TopRight = Top | Right,
+
+		/// <summary>
+		/// Bottom left corner.
+		/// </summary>
+		BottomLeft = Bottom | Left,
+
+		/// <summary>
+		/// Bottom right corner.
+		/// </summary>
+		BottomRight = Bottom | Right,
 	}
 }

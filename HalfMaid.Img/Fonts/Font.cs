@@ -195,7 +195,7 @@ namespace HalfMaid.Img.Fonts
 			Name = name;
 			Info = info;
 
-			FontPage fontPage = new FontPage(image, startChar, charCount,
+			ImageFontPage fontPage = new ImageFontPage(image, startChar, charCount,
 				charCols, charRows, charWidth, charHeight, startX, startY, padX, padY,
 				isColumns, isMonospace);
 
@@ -245,6 +245,23 @@ namespace HalfMaid.Img.Fonts
 					? _pages[page][codePoint]
 					: throw new KeyNotFoundException($"Code point {codePoint} is not found in font {Name}.");
 			}
+		}
+
+		/// <summary>
+		/// Retrieve a glyph from this font.
+		/// </summary>
+		/// <param name="codePoint">The Unicode code point of the glyph to retrieve.</param>
+		/// <param name="topLeft">The target pixel coordinate at which the glyph will
+		/// be displayed.  Fonts that support pixel-perfect font rendering may return
+		/// different Glyph objects for different coordinates.  Image-based (bitmap-based)
+		/// fonts will typically return the same Glyph regardless of which coordinate
+		/// is provided.</param>
+		/// <returns>The glyph, or null if no such glyph exists at this code point.</returns>
+		[Pure]
+		public Glyph? GetGlyph(int codePoint, Vector2d topLeft)
+		{
+			int page = FindPage(_pages, codePoint);
+			return page >= 0 ? _pages[page].GetGlyph(codePoint, topLeft) : null;
 		}
 
 		/// <summary>
@@ -319,16 +336,21 @@ namespace HalfMaid.Img.Fonts
 
 		/// <summary>
 		/// Measure the text if it were rendered in this font.  This supports
-		/// the newline '\n' character to separate lines, but all other characters
-		/// are rendered verbatim.  This applies kerning and kerning pairs when
-		/// measuring the text, but does not allow for custom kerning or leading.
+		/// the newline '\n' and '\r' characters to separate lines, but all other
+		/// characters are rendered verbatim.  This applies kerning and kerning pairs
+		/// when measuring the text, but does not allow for custom kerning or leading.
 		/// </summary>
 		/// <param name="text">The text to measure.</param>
-		/// <param name="wrapAtNewlines">Whether the newline '\n' character should be
-		/// treated as a line break (true) or as an ordinary printable character (false).</param>
+		/// <param name="wrapAtNewlines">Whether the newline '\n' and '\r' characters
+		/// should be treated as line breaks (true) or as ordinary printable characters
+		/// (false).</param>
+		/// <param name="includeFinalKerning">Whether to include kerning after the last
+		/// glyph on each line.  By default, the "tail kerning" is omitted, but if this
+		/// text is to be joined to other text, you may want to include it.</param>
 		/// <returns>The maximum width and height of the text.</returns>
 		[Pure]
-		public Vector2d MeasureText(ReadOnlySpan<char> text, bool wrapAtNewlines = false)
+		public Vector2d MeasureText(ReadOnlySpan<char> text,
+			bool wrapAtNewlines = false, bool includeFinalKerning = false)
 		{
 			double x = 0;
 			double y = 0;
@@ -339,6 +361,7 @@ namespace HalfMaid.Img.Fonts
 
 			int ch;
 			int prev = -1;
+			bool hasCharsOnThisLine = false;
 
 			while ((ch = str.Next()) >= 0)
 			{
@@ -350,28 +373,54 @@ namespace HalfMaid.Img.Fonts
 				if (ch == 32 || ch == 160)
 				{
 					// Space.
+					hasCharsOnThisLine = true;
 					x += Metrics.Space + kerning;
 					prev = ch;
 					continue;
 				}
-				else if (wrapAtNewlines && ch == 10)
+				else if (wrapAtNewlines)
 				{
-					// Newline.
-					maxX = Math.Max(maxX, x);
-					x = 0;
-					y += Metrics.LineHeight;
+					if (ch == 10)
+					{
+						if (str.Peek() == 13)
+							str.Next();
+
+						// Newline.
+						if (hasCharsOnThisLine && !includeFinalKerning)
+							x -= kerning;
+						maxX = Math.Max(maxX, x);
+						x = 0;
+						y += Metrics.LineHeight;
+					}
+					else if (ch == 13)
+					{
+						if (str.Peek() == 10)
+							str.Next();
+
+						// Newline.
+						if (hasCharsOnThisLine && !includeFinalKerning)
+							x -= kerning;
+						maxX = Math.Max(maxX, x);
+						x = 0;
+						y += Metrics.LineHeight;
+					}
 				}
 
 				// Get the glyph for this character.
-				if (!TryGetValue(ch, out Glyph? glyph))
+				Glyph? glyph = GetGlyph(ch, new Vector2d(x, y));
+				if (glyph == null)
 					continue;
 
 				// Move forward past the glyph, plus the default kerning.
-				x += glyph.Width + kerning;
+				hasCharsOnThisLine = true;
+				x += glyph.Advance.X + kerning;
+				y += glyph.Advance.Y;
 
 				prev = ch;
 			}
 
+			if (hasCharsOnThisLine && !includeFinalKerning)
+				x -= kerning;
 			maxX = Math.Max(maxX, x);
 
 			return new Vector2d(maxX, y);
@@ -459,7 +508,7 @@ namespace HalfMaid.Img.Fonts
 		private static readonly HashSet<char> _ascentChars =
 			new HashSet<char>("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZbdfhijklt");
 		private static readonly HashSet<char> _descentChars =
-			new HashSet<char>("FJLQRZgjpqy");
+			new HashSet<char>("gjpqy");
 		private static readonly HashSet<char> _lowerAscentChars =
 			new HashSet<char>("acegmnopqrsuvwxyz");
 		private static readonly HashSet<char> _baselineChars =
@@ -483,14 +532,15 @@ namespace HalfMaid.Img.Fonts
 			// Measure every letter and number.
 			for (int i = 0; i < LettersAndNumbers.Length; i++)
 			{
-				if (!glyphs.TryGetValue(i, out Glyph? glyph))
+				char ch = LettersAndNumbers[i];
+				if (!glyphs.TryGetValue(ch, out Glyph? glyph))
 					continue;
 
 				(int y, int width, int height) = MeasureGlyph(glyph);
 
 				if (width <= 0 || height <= 0)
 					continue;
-				measurements.Add((i, y, width, height));
+				measurements.Add((ch, y, width, height));
 			}
 
 			// Sum up the positions found for each of ascent, descent, lower ascent, and baseline.
@@ -617,8 +667,8 @@ namespace HalfMaid.Img.Fonts
 			double baseline = avgBaseline2;
 
 			// Find the true maxima.
-			double maxAscent = baseline - avgAscent2;
-			double maxDescent = avgDescent2 - baseline;
+			double maxAscent = 0;
+			double maxDescent = 0;
 			Dictionary<int, (int Ch, double Y, double Width, double Height)> measurementsLookup =
 				measurements.ToDictionary(m => m.Ch);
 			foreach (KeyValuePair<int, Glyph> pair in glyphs)
@@ -628,6 +678,8 @@ namespace HalfMaid.Img.Fonts
 					(_, y, width, height) = m;
 				else
 					(y, width, height) = MeasureGlyph(pair.Value);
+				if (width <= 0 || height <= 0)
+					continue;
 
 				double descent = Math.Max(0, y + height - baseline);
 				double ascent = Math.Max(0, baseline - y);
@@ -647,10 +699,10 @@ namespace HalfMaid.Img.Fonts
 				maxDescent: maxDescent,
 				baseline: baseline,
 				lowercaseAscent: baseline - avgLowerAscent2,
-				lineHeight: emGlyph.Height,
-				emWidth: isMonospace ? emGlyph.Width : emWidth,
-				exWidth: isMonospace ? emGlyph.Width : exWidth,
-				space: Math.Max(2.0, isMonospace ? emGlyph.Width : emWidth / 4),
+				lineHeight: emWidth * 1.25,
+				emWidth: isMonospace ? emWidth : emWidth,
+				exWidth: isMonospace ? emWidth : exWidth,
+				space: Math.Max(2.0, isMonospace ? emGlyph.Width : emWidth * 3 / 8),
 				kerning: isMonospace ? 0 : Math.Max(1.0, emWidth / 8),
 				monospace: isMonospace
 			);
@@ -667,7 +719,7 @@ namespace HalfMaid.Img.Fonts
 					? image8.MeasureContent(glyph.Rect, 0)
 				: default;
 
-			return (rect.Y - glyph.Y, rect.Width, rect.Height);
+			return (rect.Y - glyph.Y - glyph.Origin.Y, rect.Width, rect.Height);
 		}
 	}
 }

@@ -17,8 +17,8 @@ namespace HalfMaid.Img.Fonts
 		/// <summary>
 		/// Simple aligned-text-positioning routine.  This positions the given text, in the given font,
 		/// starting at the given point (for the top-left corner of the text).  It advances
-		/// to the right after drawing each character.  The '\n' character (code point 10)
-		/// will advance to the next line.
+		/// to the right after drawing each character.  Any of '\n', '\r', '\r\n', or '\n\r' will
+		/// advance to the next line.
 		/// </summary>
 		/// <param name="result">The shaped glyphs will be written to this collection.</param>
 		/// <param name="rect">The containing rectangle for the text.</param>
@@ -26,7 +26,7 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="font">The font to use to shape the text.</param>
 		/// <param name="textAlignment">How to align the text relative to the given rectangle.</param>
 		/// <returns>The Y coordinate of the next line.</returns>
-		public static double PositionText(ICollection<PositionedGlyph> result,
+		public static double PositionMultilineText(ICollection<PositionedGlyph> result,
 			Rectd rect, ReadOnlySpan<char> text, Font font, TextAlignment textAlignment)
 		{
 			// Fast-calculate the height of the text, if it matters to do so.
@@ -34,9 +34,27 @@ namespace HalfMaid.Img.Fonts
 			if ((textAlignment & TextAlignment.VertMask) > TextAlignment.Top)
 			{
 				int numLines = 1;
-				foreach (char ch in text)
-					if (ch == '\n')
+				int lastCh = -1;
+				for (int i = 0; i < text.Length; )
+				{
+					int ch = lastCh = text[i++];
+					if (ch == '\r')
+					{
+						if (i < text.Length && text[i] == '\n')
+							lastCh = text[i++];
 						numLines++;
+					}
+					else if (ch == '\n')
+					{
+						if (i < text.Length && text[i] == '\r')
+							lastCh = text[i++];
+						numLines++;
+					}
+				}
+
+				// Strip a trailing newline if there is one.
+				if (lastCh == '\n' || lastCh == '\r')
+					numLines--;
 
 				// Simple multiplication to figure out the height of the text.
 				textHeight = numLines * font.Metrics.LineHeight;
@@ -48,7 +66,7 @@ namespace HalfMaid.Img.Fonts
 				TextAlignment.Default => rect.Y,
 				TextAlignment.Top => rect.Y,
 				TextAlignment.Bottom => rect.Y + rect.Height - textHeight,
-				TextAlignment.VertCenter => (rect.Y + rect.Height - textHeight) * 0.5,
+				TextAlignment.VertCenter => rect.Y + (rect.Height - textHeight) * 0.5,
 				TextAlignment.Baseline => rect.Y - font.Metrics.Baseline,
 				_ => rect.Y,
 			};
@@ -57,11 +75,26 @@ namespace HalfMaid.Img.Fonts
 			{
 				// Extract the next line.
 				int lineStart = i;
-				while (i < text.Length && text[i] != '\n')
-					i++;
-				int lineLength = i - lineStart;
-				if (i < text.Length && text[i] == '\n')
-					i++;
+				int lineEnd = i;
+				while (i < text.Length)
+				{
+					int ch = text[i++];
+					if (ch == '\r')
+					{
+						lineEnd = i - 1;
+						if (i < text.Length && text[i] == '\n')
+							i++;
+						break;
+					}
+					else if (ch == '\n')
+					{
+						lineEnd = i - 1;
+						if (i < text.Length && text[i] == '\r')
+							i++;
+						break;
+					}
+				}
+				int lineLength = lineEnd - lineStart;
 				ReadOnlySpan<char> line = text.Slice(lineStart, lineLength);
 
 				// If the horizontal alignment is anything other than default/left,
@@ -76,7 +109,7 @@ namespace HalfMaid.Img.Fonts
 					TextAlignment.Default => rect.X,
 					TextAlignment.Left => rect.X,
 					TextAlignment.Right => rect.X + rect.Width - textWidth,
-					TextAlignment.HorzCenter => (rect.Y + rect.Width - textWidth) * 0.5,
+					TextAlignment.HorzCenter => rect.X + (rect.Width - textWidth) * 0.5,
 					_ => rect.X,
 				};
 
@@ -104,6 +137,7 @@ namespace HalfMaid.Img.Fonts
 			Vector2d point, ReadOnlySpan<char> text, Font font)
 		{
 			double x = point.X;
+			double y = point.Y;
 			double defaultKerning = font.Metrics.Kerning;
 			IReadOnlyDictionary<(int, int), double> kerningPairs = font.KerningPairs;
 
@@ -128,19 +162,21 @@ namespace HalfMaid.Img.Fonts
 				}
 
 				// Get the glyph for this character.
-				if (!font.TryGetValue(ch, out Glyph? glyph))
+				Glyph? glyph = font.GetGlyph(ch, new Vector2d(x, y));
+				if (glyph == null)
 					continue;
 
 				// Actually position the glyph.
-				result.Add(new PositionedGlyph(glyph, new Vector2((float)x, (float)point.Y)));
+				result.Add(new PositionedGlyph(glyph, new Vector2((float)x, (float)y - glyph.Origin.Y)));
 
 				// Move forward past the glyph, plus the default kerning.
-				x += glyph.Width + defaultKerning;
+				x += glyph.Advance.X + defaultKerning;
+				y += glyph.Advance.Y;
 
 				prev = ch;
 			}
 
-			return new Vector2d(x, point.Y);
+			return new Vector2d(x, y);
 		}
 	}
 }

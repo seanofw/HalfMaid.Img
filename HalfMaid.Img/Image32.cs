@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using OpenTK.Mathematics;
 using HalfMaid.Img.FileFormats;
+using HalfMaid.Img.Fonts;
 
 namespace HalfMaid.Img
 {
@@ -137,7 +138,7 @@ namespace HalfMaid.Img
 		public Image32(ReadOnlySpan<byte> data, string? filenameIfKnown = null,
 			ImageFormat imageFormat = default)
 		{
-			Image32? image = LoadFile(data, filenameIfKnown, imageFormat);
+			Image32? image = LoadFromBytes(data, filenameIfKnown, imageFormat);
 			if (image == null)
 				throw new ArgumentException($"The given data is not readable as a known image format.");
 
@@ -578,7 +579,7 @@ namespace HalfMaid.Img
 		/// <returns>The newly-loaded image, or null if no such image exists or is not
 		/// a valid image file.</returns>
 		[Pure]
-		public static Image32? FromEmbeddedResource(Assembly assembly, string name)
+		public static Image32? LoadEmbeddedResource(Assembly assembly, string name)
 		{
 			byte[] bytes;
 			using (MemoryStream memoryStream = new MemoryStream())
@@ -592,7 +593,7 @@ namespace HalfMaid.Img
 				bytes = memoryStream.ToArray();
 			}
 
-			return LoadFile(bytes, name);
+			return LoadFromBytes(bytes, name);
 		}
 
 		/// <summary>
@@ -617,7 +618,7 @@ namespace HalfMaid.Img
 				return null;
 			}
 
-			return LoadFile(bytes, filename, imageFormat);
+			return LoadFromBytes(bytes, filename, imageFormat);
 		}
 
 		/// <summary>
@@ -632,7 +633,7 @@ namespace HalfMaid.Img
 		/// and the data.</param>
 		/// <returns>The new image, or null if it can't be decoded.</returns>
 		[Pure]
-		public static Image32? LoadFile(ReadOnlySpan<byte> data, string? filenameIfKnown = null,
+		public static Image32? LoadFromBytes(ReadOnlySpan<byte> data, string? filenameIfKnown = null,
 			ImageFormat imageFormat = default)
 		{
 			// If we weren't told what format the data is, then attempt to guess.
@@ -833,7 +834,7 @@ namespace HalfMaid.Img
 		[Pure]
 		public void SaveFile(string filename, ImageFormat format, IFileSaveOptions? options = null)
 		{
-			byte[] bytes = SaveFile(format, options);
+			byte[] bytes = SaveToBytes(format, options);
 			File.WriteAllBytes(filename, bytes);
 		}
 
@@ -846,7 +847,7 @@ namespace HalfMaid.Img
 		/// <param name="options">Options specific to this file format, if appropriate.</param>
 		/// <returns>An array of bytes that represents the image in the given file format.</returns>
 		[Pure]
-		public byte[] SaveFile(ImageFormat format, IFileSaveOptions? options = null)
+		public byte[] SaveToBytes(ImageFormat format, IFileSaveOptions? options = null)
 		{
 			if (!_savers.TryGetValue(format, out IImageSaver? saver))
 				throw new ArgumentException($"Unknown image format '{format}'.");
@@ -2010,25 +2011,25 @@ namespace HalfMaid.Img
 					int srcSkip = srcImage.Width - width;
 					int destSkip = Width - width;
 
-					if (src < dest)
-					{
-						// To produce proper "move" semantics, we need to reverse the blit
-						// so that we're not accidentally stomping on part of the source data
-						// during the operation.  We do this by flipping src in both directions,
-						// and then also flipping dest in both directions.
+					//if (src < dest)
+					//{
+					//	// To produce proper "move" semantics, we need to reverse the blit
+					//	// so that we're not accidentally stomping on part of the source data
+					//	// during the operation.  We do this by flipping src in both directions,
+					//	// and then also flipping dest in both directions.
 
-						// Flip src vertically.
-						src += srcImage.Width * (height - 1);
-						srcSkip = -width - srcImage.Width;
+					//	// Flip src vertically.
+					//	src += srcImage.Width * (height - 1);
+					//	srcSkip = -width - srcImage.Width;
 
-						// Flip src horizontally.
-						srcStep = -1;
-						src += width - 1;
-						srcSkip += width;
+					//	// Flip src horizontally.
+					//	srcStep = -1;
+					//	src += width - 1;
+					//	srcSkip += width;
 
-						// Now flip dest too, which will result in the original desired orientation.
-						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
-					}
+					//	// Now flip dest too, which will result in the original desired orientation.
+					//	blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
+					//}
 
 					if ((blitFlags & BlitFlags.FlipVert) != 0)
 					{
@@ -5430,12 +5431,12 @@ namespace HalfMaid.Img
 		/// <summary>
 		/// Simple text-drawing-with-alignment routine.  This draws the given text, in the
 		/// given font, aligned as chosen within the given rectangle.  It advances to the
-		/// right after drawing each character.  The '\n' character (code point 10) will
-		/// advance to the next line.  By default, this copies from the font in color-alpha
-		/// mode, so if the font image is properly constructed, the color parameter will
-		/// determine the color of the text.  This doesn't use fancy font shaping, but
-		/// instead just draws left-to-right within each line of text, and top-to-bottom
-		/// for successive lines.
+		/// right after drawing each character.  A '\n' character (code point 10) or '\r\n'
+		/// pair (code points 13 and 10) will advance to the next line.  By default, this
+		/// copies from the font in color-alpha mode, so if the font image is properly
+		/// constructed, the color parameter will determine the color of the text.  This
+		/// doesn't use fancy font shaping, but instead just draws left-to-right within each
+		/// line of text, and top-to-bottom for successive lines.
 		/// </summary>
 		/// <param name="rect">The containing rectangle for the text.</param>
 		/// <param name="text">The text to draw.</param>
@@ -5445,12 +5446,12 @@ namespace HalfMaid.Img
 		/// <param name="textAlignment">How to align the text relative to the given rectangle.
 		/// The default alignment is to place the text in the top-left corner of the
 		/// given rectangle.</param>
-		public void DrawText(Rectd rect, ReadOnlySpan<char> text, Font font,
+		public void DrawMultilineText(Rectd rect, ReadOnlySpan<char> text, Font font,
 			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha,
 			TextAlignment textAlignment = default)
 		{
 			List<PositionedGlyph> positionedGlyphs = new List<PositionedGlyph>();
-			SimpleTextPositioner.PositionText(positionedGlyphs,
+			SimpleTextPositioner.PositionMultilineText(positionedGlyphs,
 				new Rectd(0, 0, rect.Width, rect.Height), text, font, textAlignment);
 			DrawText(rect.TopLeft, positionedGlyphs, color, blitFlags);
 		}
@@ -6426,8 +6427,9 @@ namespace HalfMaid.Img
 		{
 			int x = MeasureContentStartX(rect, alphaCutoff);
 			int y = MeasureContentStartY(rect, alphaCutoff);
-			int width = MeasureContentWidth(rect, alphaCutoff);
-			int height = MeasureContentHeight(rect, alphaCutoff);
+			int dx = x - rect.X, dy = y - rect.Y;
+			int width = MeasureContentWidth(new Rect(x, y, rect.Width - dx, rect.Height - dy), alphaCutoff);
+			int height = MeasureContentHeight(new Rect(x, y, rect.Width - dx, rect.Height - dy), alphaCutoff);
 
 			return width > 0 && height > 0
 				? new Rect(x, y, width, height)

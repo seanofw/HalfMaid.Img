@@ -330,8 +330,8 @@ namespace HalfMaid.Img
 		/// <returns>The newly-loaded image, or PureImage.Empty if no such image exists
 		/// or is not a valid image file.</returns>
 		[Pure]
-		public static PureImage24 FromEmbeddedResource(Assembly assembly, string name)
-			=> Image24.FromEmbeddedResource(assembly, name) ?? Empty;
+		public static PureImage24 LoadEmbeddedResource(Assembly assembly, string name)
+			=> Image24.LoadEmbeddedResource(assembly, name) ?? Empty;
 
 		/// <summary>
 		/// Load the given file as a new image, which must be of a supported image
@@ -358,9 +358,9 @@ namespace HalfMaid.Img
 		/// and the data.</param>
 		/// <returns>The new image, or PureImage.Empty if it can't be loaded.</returns>
 		[Pure]
-		public static PureImage24 LoadFile(ReadOnlySpan<byte> data, string? filenameIfKnown = null,
+		public static PureImage24 LoadFromBytes(ReadOnlySpan<byte> data, string? filenameIfKnown = null,
 			ImageFormat imageFormat = default)
-			=> Image24.LoadFile(data, filenameIfKnown, imageFormat) ?? Empty;
+			=> Image24.LoadFromBytes(data, filenameIfKnown, imageFormat) ?? Empty;
 
 		/// <summary>
 		/// Retrieve just the simple metadata from the given image file:
@@ -433,8 +433,8 @@ namespace HalfMaid.Img
 		/// <param name="options">Options specific to this file format, if appropriate.</param>
 		/// <returns>An array of bytes that represents the image in the given file format.</returns>
 		[Pure]
-		public byte[] SaveFile(ImageFormat format, IFileSaveOptions? options = null)
-			=> _image.SaveFile(format, options);
+		public byte[] SaveToBytes(ImageFormat format, IFileSaveOptions? options = null)
+			=> _image.SaveToBytes(format, options);
 
 		/// <summary>
 		/// Register the given class(es) as being able to load or save
@@ -2042,12 +2042,12 @@ namespace HalfMaid.Img
 		/// <summary>
 		/// Simple text-drawing-with-alignment routine.  This draws the given text, in the
 		/// given font, aligned as chosen within the given rectangle.  It advances to the
-		/// right after drawing each character.  The '\n' character (code point 10) will
-		/// advance to the next line.  By default, this copies from the font in color-alpha
-		/// mode, so if the font image is properly constructed, the color parameter will
-		/// determine the color of the text.  This doesn't use fancy font shaping, but
-		/// instead just draws left-to-right within each line of text, and top-to-bottom
-		/// for successive lines.
+		/// right after drawing each character.  A '\n' character (code point 10) or '\r\n'
+		/// pair (code points 13 and 10) will advance to the next line.  By default, this
+		/// copies from the font in color-alpha mode, so if the font image is properly
+		/// constructed, the color parameter will determine the color of the text.  This
+		/// doesn't use fancy font shaping, but instead just draws left-to-right within each
+		/// line of text, and top-to-bottom for successive lines.
 		/// </summary>
 		/// <param name="rect">The containing rectangle for the text.</param>
 		/// <param name="text">The text to draw.</param>
@@ -2058,12 +2058,12 @@ namespace HalfMaid.Img
 		/// The default alignment is to place the text in the top-left corner of the
 		/// given rectangle.</param>
 		/// <returns>The new image with the text drawn on it.</returns>
-		public PureImage24 DrawText(Rectd rect, ReadOnlySpan<char> text, Font font,
+		public PureImage24 DrawMultilineText(Rectd rect, ReadOnlySpan<char> text, Font font,
 			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha,
 			TextAlignment textAlignment = default)
 		{
 			Image24 clone = _image.Clone();
-			clone.DrawText(rect, text, font, color, blitFlags, textAlignment);
+			clone.DrawMultilineText(rect, text, font, color, blitFlags, textAlignment);
 			return clone;
 		}
 
@@ -2337,7 +2337,7 @@ namespace HalfMaid.Img
 
 		/// <summary>
 		/// Determine if the row of pixels starting at (x, y) and of the given width
-		/// is entirely transparent (color.A &lt;= cutoff).  Pixels outside the image will be
+		/// is entirely transparent (equal to the transparent color).  Pixels outside the image will be
 		/// treated as transparent, and a zero-width row will as well.
 		/// </summary>
 		/// <param name="x">The starting X offset of the row.</param>
@@ -2352,7 +2352,7 @@ namespace HalfMaid.Img
 
 		/// <summary>
 		/// Determine if the column of pixels starting at (x, y) and of the given height
-		/// is entirely transparent (color.A &lt;= cutoff).  Pixels outside the image will be
+		/// is entirely transparent (equal to the transparent color).  Pixels outside the image will be
 		/// treated as transparent, and a zero-height column will as well.
 		/// </summary>
 		/// <param name="x">The horizontal offset of the column.</param>

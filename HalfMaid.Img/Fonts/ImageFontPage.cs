@@ -9,12 +9,12 @@ using OpenTK.Mathematics;
 namespace HalfMaid.Img.Fonts
 {
 	/// <summary>
-	/// A font page describes a set of one or more glyphs that can be used
-	/// to render a font.  At its core, it is simply a dictionary, mapping Unicode
-	/// code points to glyphs in the same source image, and it also includes
-	/// metadata to provide for faster glyph lookup.
+	/// A font page that describes a set of one or more glyphs that can be used
+	/// to render a font from a single image.  At its core, it is simply a dictionary,
+	/// mapping Unicode code points to glyphs in the same source image, and it also
+	/// includes metadata to provide for faster glyph lookup.
 	/// </summary>
-	public class FontPage : IEquatable<FontPage>, IFontPage
+	public class ImageFontPage : IEquatable<ImageFontPage>, IFontPage
 	{
 		/// <summary>
 		/// The image used to represent this page of the font.  This is treated
@@ -54,7 +54,7 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="image">The image containing the glyphs.</param>
 		/// <param name="glyphs">The glyphs in that image, in no particular order.</param>
 		[Pure]
-		public FontPage(IImage image, IEnumerable<Glyph> glyphs)
+		public ImageFontPage(IImage image, IEnumerable<Glyph> glyphs)
 		{
 			if (image == null)
 				throw new ArgumentNullException(nameof(image), "Image cnanot be null when creating a font page.");
@@ -106,7 +106,7 @@ namespace HalfMaid.Img.Fonts
 		/// say, that the character sizes should all be treated as exactly 'charWidth'
 		/// instead of being measured against transparent (or 0-valued) pixels.</param>
 		[Pure]
-		public FontPage(IImage image,
+		public ImageFontPage(IImage image,
 			int startChar, int charCount,
 			int charCols, int charRows, int charWidth, int charHeight,
 			int startX = 0, int startY = 0, int padX = 0, int padY = 0,
@@ -129,10 +129,17 @@ namespace HalfMaid.Img.Fonts
 				Vector2i topLeft = new Vector2i(
 					startX + (charWidth + padX) * col,
 					startY + (charHeight + padY) * row);
-				Vector2i size = isMonospace ? new Vector2i(charWidth, charHeight)
-					: new Vector2i(MeasureContentWidth(image, new Rect(topLeft.X, topLeft.Y, charWidth, charHeight)), charHeight);
+				Rect glyphRect = isMonospace
+					? new Rect(topLeft.X, topLeft.Y, charWidth, charHeight)
+					: MeasureContentRect(image, new Rect(topLeft.X, topLeft.Y, charWidth, charHeight));
 
-				glyphs.Add(new Glyph(image, ch, topLeft.X, topLeft.Y, size.X, size.Y, default));
+				int advanceX = glyphRect.Width;
+				if (!isMonospace)
+					if (IsColumnLessThanOrEqualTo(image, glyphRect.X + glyphRect.Width - 1, glyphRect.Y, glyphRect.Height, 85))
+						advanceX--;
+
+				glyphs.Add(new Glyph(image, ch, glyphRect.X, glyphRect.Y, glyphRect.Width, glyphRect.Height,
+					new Vector2i(0, topLeft.Y - glyphRect.Y), new Vector2d(advanceX, 0)));
 			}
 
 			// Generate the resulting dictionary of glyphs.
@@ -143,41 +150,97 @@ namespace HalfMaid.Img.Fonts
 		}
 
 		/// <summary>
-		/// Measure the width of the given glyph.
+		/// Measure the bounding box of the given glyph.
 		/// </summary>
 		/// <param name="image">The image that contains the glyph.</param>
-		/// <param name="rect">The rectangle that contains the glyph (and nothing else!)</param>
-		/// <returns>The width of the measured glyph.</returns>
+		/// <param name="rect">A rectangle that contains the glyph, and possibly empty padding.</param>
+		/// <returns>A rectangle that contains *only* the glyph's pixels.</returns>
 		[Pure]
-		protected static int MeasureContentWidth(IImage image, Rect rect)
+		protected static Rect MeasureContentRect(IImage image, Rect rect)
 		{
 			if (image is Image32 image32)
-				return image32.MeasureContentWidth(rect);
-			else if (image is Image24 image24)
-				return image24.MeasureContentWidth(rect, Color24.Black);
+				return image32.MeasureContent(rect);
 			else if (image is Image8 image8)
-				return image8.MeasureContentWidth(rect);
+				return image8.MeasureContent(rect);
+			else if (image is Image24 image24)
+				return image24.MeasureContent(rect, Color24.Black);
 			else
-				return rect.Width;
+				return rect;
 		}
 
 		/// <summary>
-		/// Measure the height of the given glyph.
+		/// Determine if the given column of the image is 
 		/// </summary>
-		/// <param name="image">The image that contains the glyph.</param>
-		/// <param name="rect">The rectangle that contains the glyph (and nothing else!)</param>
-		/// <returns>height of the measured glyph.</returns>
+		/// <param name="image">The image to scan.</param>
+		/// <param name="x">The horizontal position of the column.</param>
+		/// <param name="y">The topmost Y coordinate in the column to test.</param>
+		/// <param name="height">The number of vertical pixels to test.</param>
+		/// <param name="cutoff">The cutoff value, which is treated as the alpha for 32-bit images,
+		/// the grayscale brightness for 24-bit images, and the literal byte value for 8-bit images.</param>
+		/// <returns>True if all of the values tested in the given column are less than
+		/// or equal to the cutoff value.</returns>
 		[Pure]
-		protected static int MeasureContentHeight(IImage image, Rect rect)
+		protected static bool IsColumnLessThanOrEqualTo(IImage image, int x, int y, int height, byte cutoff)
 		{
 			if (image is Image32 image32)
-				return image32.MeasureContentWidth(rect);
+				return image32.IsColumnTransparent(x, y, height, cutoff);
 			else if (image is Image24 image24)
-				return image24.MeasureContentWidth(rect, Color24.Black);
+				return IsColumnBelowGray(image24, x, y, height, cutoff);
 			else if (image is Image8 image8)
-				return image8.MeasureContentWidth(rect);
+				return image8.IsColumnTransparent(x, y, height, cutoff);
 			else
-				return rect.Width;
+				return false;
+		}
+
+		/// <summary>
+		/// For 24-bit images, there's no built-in test to see if a given column is below a given
+		/// grayscale brightness, so we implement one here.
+		/// </summary>
+		/// <param name="image">The image to scan.</param>
+		/// <param name="x">The horizontal position of the column.</param>
+		/// <param name="y">The topmost Y coordinate in the column to test.</param>
+		/// <param name="height">The number of vertical pixels to test.</param>
+		/// <param name="cutoff">The cutoff value, which is treated as the alpha for 32-bit images,
+		/// the grayscale brightness for 24-bit images, and the literal byte value for 8-bit images.</param>
+		/// <returns>True if all of the values tested in the given column are less than
+		/// or equal to the cutoff value.</returns>
+		[Pure]
+		private static bool IsColumnBelowGray(Image24 image, int x, int y, int height, byte cutoff)
+		{
+			// Exclude columns outside the image.
+			if (x < 0 || x >= image.Width || y + height < 0 || y >= image.Height)
+				return true;
+
+			// Clamp the start and end to the image dimension.
+			int imageWidth = image.Width;
+			int imageHeight = image.Height;
+			if (y < 0)
+			{
+				height += y;
+				y = 0;
+			}
+			if (height > imageHeight - y)
+				height = imageHeight - y;
+
+			// Do the actual scan as fast as possible in an unsafe loop,
+			// since all coordinates are now validated.
+			unsafe
+			{
+				fixed (Color24* dataBase = image.Data)
+				{
+					int count = height;
+					Color24* data = dataBase + x + y * imageWidth;
+					do
+					{
+						if (data->Grayscale > cutoff)
+							return false;
+						data += imageWidth;
+					}
+					while (--count != 0);
+				}
+			}
+
+			return true;
 		}
 
 		/// <summary>
@@ -203,6 +266,20 @@ namespace HalfMaid.Img.Fonts
 			[Pure]
 			get => Glyphs[index];
 		}
+
+		/// <summary>
+		/// Retrieve a glyph from this page of defined glyphs.
+		/// </summary>
+		/// <param name="codePoint">The Unicode code point of the glyph to retrieve.</param>
+		/// <param name="topLeft">The target pixel coordinate at which the glyph will
+		/// be displayed.  Fonts that support pixel-perfect font rendering may return
+		/// different Glyph objects for different coordinates.  Image-based (bitmap-based)
+		/// fonts will typically return the same Glyph regardless of which coordinate
+		/// is provided.</param>
+		/// <returns>The glyph, or null if no such glyph exists at this code point.</returns>
+		[Pure]
+		public virtual Glyph? GetGlyph(int codePoint, Vector2d topLeft)
+			=> Glyphs.TryGetValue(codePoint, out Glyph? glyph) ? glyph : null;
 
 		/// <summary>
 		/// Get the glyph defined for the given code point.  Returns 'default(FontGlyph)'
@@ -263,10 +340,10 @@ namespace HalfMaid.Img.Fonts
 		/// </summary>
 		private struct KeyCollection : IEnumerable<int>
 		{
-			private readonly FontPage _fontPage;
+			private readonly ImageFontPage _fontPage;
 
 			[Pure]
-			public KeyCollection(FontPage fontPage)
+			public KeyCollection(ImageFontPage fontPage)
 				=> _fontPage = fontPage;
 			[Pure]
 			public IEnumerator<int> GetEnumerator()
@@ -282,10 +359,10 @@ namespace HalfMaid.Img.Fonts
 		/// </summary>
 		private struct ValueCollection : IEnumerable<Glyph>
 		{
-			private readonly FontPage _fontPage;
+			private readonly ImageFontPage _fontPage;
 
 			[Pure]
-			public ValueCollection(FontPage fontPage)
+			public ValueCollection(ImageFontPage fontPage)
 				=> _fontPage = fontPage;
 			[Pure]
 			public IEnumerator<Glyph> GetEnumerator()
@@ -302,7 +379,7 @@ namespace HalfMaid.Img.Fonts
 		/// <returns>True if they are equivalent objects, false if they are different.</returns>
 		[Pure]
 		public override bool Equals(object? obj)
-			=> obj is FontPage other && Equals(other);
+			=> obj is ImageFontPage other && Equals(other);
 
 		/// <summary>
 		/// Compare this font page against another font page for equality.
@@ -310,7 +387,7 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="other">The other font page to compare against.</param>
 		/// <returns>True if they are equivalent pages, false if they are different.</returns>
 		[Pure]
-		public virtual bool Equals(FontPage? other)
+		public virtual bool Equals(ImageFontPage? other)
 		{
 			if (ReferenceEquals(other, null))
 				return false;
@@ -363,7 +440,7 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="b">The other font page to compare against.</param>
 		/// <returns>True if they are equivalent pages, false if they are different.</returns>
 		[Pure]
-		public static bool operator ==(FontPage? a, FontPage? b)
+		public static bool operator ==(ImageFontPage? a, ImageFontPage? b)
 			=> ReferenceEquals(a, null) ? ReferenceEquals(b, null) : a.Equals(b);
 
 		/// <summary>
@@ -373,7 +450,7 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="b">The other font page to compare against.</param>
 		/// <returns>False if they are equivalent pages, true if they are different.</returns>
 		[Pure]
-		public static bool operator !=(FontPage? a, FontPage? b)
+		public static bool operator !=(ImageFontPage? a, ImageFontPage? b)
 			=> ReferenceEquals(a, null) ? !ReferenceEquals(b, null) : !a.Equals(b);
 
 		/// <summary>
@@ -385,3 +462,4 @@ namespace HalfMaid.Img.Fonts
 			=> $"{Count} chars from U+{Start:X4} to U+{End - 1:X4}";
 	}
 }
+

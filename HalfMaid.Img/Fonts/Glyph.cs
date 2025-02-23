@@ -53,12 +53,18 @@ namespace HalfMaid.Img.Fonts
 		private readonly short _height;
 
 		/// <summary>
+		/// How far to advance after rendering this glyph.
+		/// </summary>
+		public Vector2d Advance => _advance;
+		private readonly Vector2 _advance;
+
+		/// <summary>
 		/// The position of the origin coordinate relative to this glyph's drawing
 		/// rectangle.  For typical letters and numbers, this is the position of the
-		/// glyph's left edge and the baseline, respectively.
+		/// top-left corner of the glyph's render box.
 		/// </summary>
-		public Vector2d Origin => _origin;
-		private readonly Vector2 _origin;
+		public Vector2i Origin => _origin;
+		private readonly Vector2i _origin;
 
 		/// <summary>
 		/// The offset of the top-left corner of the glyph relative to its source image, in pixels.
@@ -79,7 +85,7 @@ namespace HalfMaid.Img.Fonts
 		/// A static glyph that doesn't reference any actual pixels of
 		/// anything meaningful and is size zero.
 		/// </summary>
-		public static Glyph Empty { get; } = new Glyph(new Image32(0, 0), 0, 0, 0, 0, 0, default);
+		public static Glyph Empty { get; } = new Glyph(new Image32(0, 0), 0, 0, 0, 0, 0, default, default);
 
 		/// <summary>
 		/// Construct a new Glyph struct.
@@ -90,8 +96,7 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="origin">The position of the origin coordinate relative to this glyph's
 		/// drawing rectangle.  For typical letters and numbers, this is the position of the
 		/// glyph's left edge and the baseline, respectively.</param>
-		public Glyph(IImage image, int codePoint,
-			Rect rect, Vector2d origin)
+		public Glyph(IImage image, int codePoint, Rect rect, Vector2i origin)
 		{
 			_image = image;
 			_codePoint = codePoint;
@@ -99,7 +104,7 @@ namespace HalfMaid.Img.Fonts
 			_y = (short)rect.Y;
 			_width = (short)rect.Width;
 			_height = (short)rect.Height;
-			_origin = (Vector2)origin;
+			_origin = origin;
 		}
 
 		/// <summary>
@@ -112,8 +117,9 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="origin">The position of the origin coordinate relative to this glyph's
 		/// drawing rectangle.  For typical letters and numbers, this is the position of the
 		/// glyph's left edge and the baseline, respectively.</param>
+		/// <param name="advance">How far to advance in the X and Y directions after rendering this glyph.</param>
 		public Glyph(IImage image, int codePoint,
-			Vector2i offset, Vector2i size, Vector2d origin)
+			Vector2i offset, Vector2i size, Vector2i origin, Vector2d advance)
 		{
 			_image = image;
 			_codePoint = codePoint;
@@ -121,7 +127,8 @@ namespace HalfMaid.Img.Fonts
 			_y = (short)offset.Y;
 			_width = (short)size.X;
 			_height = (short)size.Y;
-			_origin = (Vector2)origin;
+			_origin = origin;
+			_advance = (Vector2)advance;
 		}
 
 		/// <summary>
@@ -136,8 +143,9 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="origin">The position of the origin coordinate relative to this glyph's
 		/// drawing rectangle.  For typical letters and numbers, this is the position of the
 		/// glyph's left edge and the baseline, respectively.</param>
+		/// <param name="advance">How far to advance in the X and Y directions after rendering this glyph.</param>
 		public Glyph(IImage image, int codePoint,
-			int x, int y, int width, int height, Vector2d origin)
+			int x, int y, int width, int height, Vector2i origin, Vector2d advance)
 		{
 			_image = image;
 			_codePoint = codePoint;
@@ -145,68 +153,75 @@ namespace HalfMaid.Img.Fonts
 			_y = (short)y;
 			_width = (short)width;
 			_height = (short)height;
-			_origin = (Vector2)origin;
+			_origin = origin;
+			_advance = (Vector2)advance;
 		}
 
 		/// <summary>
 		/// Copy this object, replacing one property.
 		/// </summary>
 		public Glyph WithImage(IImage image)
-			=> new Glyph(image, CodePoint, X, Y, Width, Height, Origin);
+			=> new Glyph(image, CodePoint, X, Y, Width, Height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing one property.
 		/// </summary>
 		public Glyph WithCodePoint(int codePoint)
-			=> new Glyph(Image, codePoint, X, Y, Width, Height, Origin);
+			=> new Glyph(Image, codePoint, X, Y, Width, Height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing one property.
 		/// </summary>
 		public Glyph WithX(int x)
-			=> new Glyph(Image, CodePoint, x, Y, Width, Height, Origin);
+			=> new Glyph(Image, CodePoint, x, Y, Width, Height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing one property.
 		/// </summary>
 		public Glyph WithY(int y)
-			=> new Glyph(Image, CodePoint, X, y, Width, Height, Origin);
+			=> new Glyph(Image, CodePoint, X, y, Width, Height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing one property.
 		/// </summary>
 		public Glyph WithWidth(int width)
-			=> new Glyph(Image, CodePoint, X, Y, width, Height, Origin);
+			=> new Glyph(Image, CodePoint, X, Y, width, Height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing one property.
 		/// </summary>
 		public Glyph WithHeight(int height)
-			=> new Glyph(Image, CodePoint, X, Y, Width, height, Origin);
+			=> new Glyph(Image, CodePoint, X, Y, Width, height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing two properties (in bulk).
 		/// </summary>
 		public Glyph WithOffset(Vector2i offset)
-			=> new Glyph(Image, CodePoint, offset.X, offset.Y, Width, Height, Origin);
+			=> new Glyph(Image, CodePoint, offset.X, offset.Y, Width, Height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing two properties (in bulk).
 		/// </summary>
 		public Glyph WithSize(Vector2i size)
-			=> new Glyph(Image, CodePoint, X, Y, size.X, size.Y, Origin);
+			=> new Glyph(Image, CodePoint, X, Y, size.X, size.Y, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing four properties (in bulk).
 		/// </summary>
 		public Glyph WithRect(Rect rect)
-			=> new Glyph(Image, CodePoint, rect.X, rect.Y, rect.Width, rect.Height, Origin);
+			=> new Glyph(Image, CodePoint, rect.X, rect.Y, rect.Width, rect.Height, Origin, Advance);
 
 		/// <summary>
 		/// Copy this object, replacing one property.
 		/// </summary>
-		public Glyph WithOrigin(Vector2d origin)
-			=> new Glyph(Image, CodePoint, X, Y, Width, Height, origin);
+		public Glyph WithOrigin(Vector2i origin)
+			=> new Glyph(Image, CodePoint, X, Y, Width, Height, origin, Advance);
+
+		/// <summary>
+		/// Copy this object, replacing one property.
+		/// </summary>
+		public Glyph WithAdvance(Vector2d advance)
+			=> new Glyph(Image, CodePoint, X, Y, Width, Height, Origin, advance);
 
 		/// <summary>
 		/// Compare this glyph against another object for equality.
@@ -228,7 +243,8 @@ namespace HalfMaid.Img.Fonts
 						&& _codePoint == other._codePoint
 						&& _x == other._x && _y == other._y
 						&& _width == other._width && _height == other._height
-						&& _origin == other._origin));
+						&& _origin == other._origin
+						&& _advance == other._advance));
 
 		/// <summary>
 		/// Get a hash code for this glyph, so that this glyph can be used as a key
@@ -244,8 +260,8 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="a">The first glyph to compare.</param>
 		/// <param name="b">The other glyph to compare against.</param>
 		/// <returns>True if they are the same glyph, false if they are different.</returns>
-		public static bool operator ==(Glyph a, Glyph b)
-			=> a.Equals(b);
+		public static bool operator ==(Glyph? a, Glyph? b)
+			=> ReferenceEquals(a, null) ? ReferenceEquals(b, null) : a.Equals(b);
 
 		/// <summary>
 		/// Compare one glyph against another glyph for equality.
@@ -253,14 +269,14 @@ namespace HalfMaid.Img.Fonts
 		/// <param name="a">The first glyph to compare.</param>
 		/// <param name="b">The other glyph to compare against.</param>
 		/// <returns>False if they are the same glyph, true if they are different.</returns>
-		public static bool operator !=(Glyph a, Glyph b)
-			=> !a.Equals(b);
+		public static bool operator !=(Glyph? a, Glyph? b)
+			=> ReferenceEquals(a, null) ? !ReferenceEquals(b, null) : !a.Equals(b);
 
 		/// <summary>
 		/// Convert this glyph to a string, mostly for debugging purposes.
 		/// </summary>
 		/// <returns>A string representation of the glyph.</returns>
 		public override string ToString()
-			=> $"'{(char)_codePoint}' {Width}x{Height} at {X}x{Y} (offset {Origin.X:0.###},{Origin.Y:0.###})";
+			=> $"'{(char)_codePoint}' {Width}x{Height} at ({X},{Y}) (origin at {Origin.X:0.###},{Origin.Y:0.###}; advance by ({Advance.X:0.###},{Advance.Y:0.###}))";
 	}
 }

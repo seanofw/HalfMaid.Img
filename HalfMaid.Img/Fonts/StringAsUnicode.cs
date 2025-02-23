@@ -82,6 +82,20 @@ namespace HalfMaid.Img.Fonts
 				: HandleSurrogatePairs(_ch);
 
 		/// <summary>
+		/// Peek at the next character in the input, but do not advance past it.
+		/// </summary>
+		/// <returns>The next Unicode code point that was read, or -1 if
+		/// there is no input remaining.</returns>
+		[MethodImpl(Optimized)]
+		public int Peek()
+		{
+			int ptr = _ptr;
+			int next = Next();
+			_ptr = ptr;
+			return next;
+		}
+
+		/// <summary>
 		/// When a value in the range of 0xD800 to 0xDBFF is read, consume
 		/// a subsequent value in the range of 0xDC00 to 0xE000 and then derive
 		/// the resulting Unicode code point from both the high and low surrogates.<br />

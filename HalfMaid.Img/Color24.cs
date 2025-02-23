@@ -120,6 +120,27 @@ namespace HalfMaid.Img
 			_ => throw new ArgumentOutOfRangeException(nameof(channel)),
 		};
 
+		/// <summary>
+		/// Calculate a grayscale value in the range of 0 to 255 that describes this color's
+		/// brightness, properly visually weighted.  This is designed to be highly efficient,
+		/// using only integer multiplication and shift.
+		/// </summary>
+		public byte Grayscale =>
+			(byte)((R * (int)(ApparentRedBrightness   * 65536 + 0.5)
+				  + G * (int)(ApparentGreenBrightness * 65536 + 0.5)
+				  + B * (int)(ApparentBlueBrightness  * 65536 + 0.5)) >> 16);
+
+		/// <summary>
+		/// Calculate the average of the R, G, and B values, quickly.  This is like a grayscale
+		/// description of the color, but without applying visual weighting.
+		/// </summary>
+		/// <remarks>
+		/// The fancy integer math performs division-with-rounding much faster than using the
+		/// actual divide operator.  It is exactly equivalent to floor((R + G + B) / 3.0 + 0.5)
+		/// for all possible 8-bit values of R, G, and B.
+		/// </remarks>
+		public byte Average => (byte)(((R + G + B) * 21846 + 32769) >> 16);
+
 		#endregion
 
 		#region Construction

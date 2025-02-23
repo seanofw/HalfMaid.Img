@@ -331,8 +331,8 @@ namespace HalfMaid.Img
 		/// <returns>The newly-loaded image, or PureImage.Empty if no such image exists
 		/// or is not a valid image file.</returns>
 		[Pure]
-		public static PureImage32 FromEmbeddedResource(Assembly assembly, string name)
-			=> Image32.FromEmbeddedResource(assembly, name) ?? Empty;
+		public static PureImage32 LoadEmbeddedResource(Assembly assembly, string name)
+			=> Image32.LoadEmbeddedResource(assembly, name) ?? Empty;
 
 		/// <summary>
 		/// Load the given file as a new image, which must be of a supported image
@@ -359,9 +359,9 @@ namespace HalfMaid.Img
 		/// and the data.</param>
 		/// <returns>The new image, or PureImage.Empty if it can't be loaded.</returns>
 		[Pure]
-		public static PureImage32 LoadFile(ReadOnlySpan<byte> data, string? filenameIfKnown = null,
+		public static PureImage32 LoadFromBytes(ReadOnlySpan<byte> data, string? filenameIfKnown = null,
 			ImageFormat imageFormat = default)
-			=> Image32.LoadFile(data, filenameIfKnown, imageFormat) ?? Empty;
+			=> Image32.LoadFromBytes(data, filenameIfKnown, imageFormat) ?? Empty;
 
 		/// <summary>
 		/// Retrieve just the simple metadata from the given image file:
@@ -434,8 +434,8 @@ namespace HalfMaid.Img
 		/// <param name="options">Options specific to this file format, if appropriate.</param>
 		/// <returns>An array of bytes that represents the image in the given file format.</returns>
 		[Pure]
-		public byte[] SaveFile(ImageFormat format, IFileSaveOptions? options = null)
-			=> _image.SaveFile(format, options);
+		public byte[] SaveToBytes(ImageFormat format, IFileSaveOptions? options = null)
+			=> _image.SaveToBytes(format, options);
 
 		/// <summary>
 		/// Register the given class(es) as being able to load or save
@@ -2108,12 +2108,12 @@ namespace HalfMaid.Img
 		/// <summary>
 		/// Simple text-drawing-with-alignment routine.  This draws the given text, in the
 		/// given font, aligned as chosen within the given rectangle.  It advances to the
-		/// right after drawing each character.  The '\n' character (code point 10) will
-		/// advance to the next line.  By default, this copies from the font in color-alpha
-		/// mode, so if the font image is properly constructed, the color parameter will
-		/// determine the color of the text.  This doesn't use fancy font shaping, but
-		/// instead just draws left-to-right within each line of text, and top-to-bottom
-		/// for successive lines.
+		/// right after drawing each character.  A '\n' character (code point 10) or '\r\n'
+		/// pair (code points 13 and 10) will advance to the next line.  By default, this
+		/// copies from the font in color-alpha mode, so if the font image is properly
+		/// constructed, the color parameter will determine the color of the text.  This
+		/// doesn't use fancy font shaping, but instead just draws left-to-right within each
+		/// line of text, and top-to-bottom for successive lines.
 		/// </summary>
 		/// <param name="rect">The containing rectangle for the text.</param>
 		/// <param name="text">The text to draw.</param>
@@ -2124,12 +2124,12 @@ namespace HalfMaid.Img
 		/// The default alignment is to place the text in the top-left corner of the
 		/// given rectangle.</param>
 		/// <returns>The new image with the text drawn on it.</returns>
-		public PureImage32 DrawText(Rectd rect, ReadOnlySpan<char> text, Font font,
+		public PureImage32 DrawMultilineText(Rectd rect, ReadOnlySpan<char> text, Font font,
 			Color32 color, BlitFlags blitFlags = BlitFlags.ColorAlpha,
 			TextAlignment textAlignment = default)
 		{
 			Image32 clone = _image.Clone();
-			clone.DrawText(rect, text, font, color, blitFlags, textAlignment);
+			clone.DrawMultilineText(rect, text, font, color, blitFlags, textAlignment);
 			return clone;
 		}
 

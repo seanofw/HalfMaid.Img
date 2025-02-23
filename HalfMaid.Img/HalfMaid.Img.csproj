@@ -68,4 +68,20 @@
 	  <EditorConfigFiles Remove="Z:\Dropbox\prog\HalfMaid.Img\HalfMaid.Img\.editorconfig" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <None Remove="Fonts\Roboto-10.png" />
+	  <None Remove="Fonts\Roboto-12.png" />
+	  <None Remove="Fonts\Roboto-14.png" />
+	  <None Remove="Fonts\Roboto-16.png" />
+	  <None Remove="Fonts\Roboto-18.png" />
+	  <None Remove="Fonts\Roboto-20.png" />
+	  <None Remove="Resources\Clean Mono-15.png" />
+	  <None Remove="Resources\Clean-15.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Resources\Clean Mono-15.png" />
+	  <EmbeddedResource Include="Resources\Clean-15.png" />
+	</ItemGroup>
+
 </Project>

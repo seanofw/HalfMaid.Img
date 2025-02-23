@@ -243,7 +243,7 @@ namespace HalfMaid.Img
 		[Pure]
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static implicit operator Rectd(Rect rect)
-			=> new Rectd(rect.Left, rect.Top, rect.Right, rect.Bottom);
+			=> new Rectd(rect.Left, rect.Top, rect.Width, rect.Height);
 
 		/// <summary>
 		/// Demote a double-valued rectangle to an integer-valued rectangle.  This will

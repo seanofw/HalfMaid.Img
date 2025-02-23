@@ -1,4 +1,3 @@
-
 using HalfMaid.Img;
 
 namespace ImgTest

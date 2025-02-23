@@ -96,11 +96,11 @@ namespace HalfMaid.Img.Gdi
 					// Include both transparent and non-transparent versions, if transparency
 					// is supposed to be included.  This will allow clipboard readers that only
 					// understand non-alpha images to still use the pasted content.
-					SetClipboardDataToImage(image.SaveFile(ImageFormat.Bmp,
+					SetClipboardDataToImage(image.SaveToBytes(ImageFormat.Bmp,
 						new BmpSaveOptions { IncludeAlpha = true }), true);
 				}
 
-				SetClipboardDataToImage(image.SaveFile(ImageFormat.Bmp,
+				SetClipboardDataToImage(image.SaveToBytes(ImageFormat.Bmp,
 					new BmpSaveOptions { IncludeAlpha = false }), false);
 			}
 			finally
@@ -207,7 +207,7 @@ namespace HalfMaid.Img.Gdi
 						throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot lock memory for bitmap on clipboard.");
 					size = Win32.GlobalSize(handle);
 					Span<byte> srcBuffer = new Span<byte>((void*)lockPtr, (int)size);
-					Image32? result = Image32.LoadFile(srcBuffer, imageFormat: ImageFormat.Bmp);
+					Image32? result = Image32.LoadFromBytes(srcBuffer, imageFormat: ImageFormat.Bmp);
 					return result;
 				}
 			}

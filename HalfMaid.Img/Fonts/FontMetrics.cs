@@ -14,16 +14,16 @@ namespace HalfMaid.Img.Fonts
 		/// and is the safe position to draw an overline for this font.
 		/// This is always a positive number or zero, and always &lt;= MaxAscent.
 		/// </summary>
-		public double Ascent => _ascent * (1.0 / 10000);
-		private readonly int _ascent;
+		public double Ascent => _ascent;
+		private readonly float _ascent;
 
 		/// <summary>
 		/// The maximum ascent of all characters in this font, in pixels, from
 		/// the baseline.  This is always a positive number or zero.  No characters
 		/// extend above this.
 		/// </summary>
-		public double MaxAscent => _maxAscent * (1.0 / 10000);
-		private readonly int _maxAscent;
+		public double MaxAscent => _maxAscent;
+		private readonly float _maxAscent;
 
 		/// <summary>
 		/// The descent of lowercase letters in this font, in pixels.  Some characters
@@ -32,23 +32,23 @@ namespace HalfMaid.Img.Fonts
 		/// draw an underline for this font.  This is always a positive number or zero,
 		/// and always &lt;= MaxDescent.
 		/// </summary>
-		public double Descent => _descent * (1.0 / 10000);
-		private readonly int _descent;
+		public double Descent => _descent;
+		private readonly float _descent;
 
 		/// <summary>
 		/// The maximum descent of all characters in this font, in pixels, from
 		/// the baseline.  This is always a positive number or zero.  No characters
 		/// extend below this.
 		/// </summary>
-		public double MaxDescent => _maxDescent * (1.0 / 10000);
-		private readonly int _maxDescent;
+		public double MaxDescent => _maxDescent;
+		private readonly float _maxDescent;
 
 		/// <summary>
 		/// For fonts that use prerendered glyphs, this is the position of the baseline,
 		/// relative to the top of the render box, in pixels.
 		/// </summary>
-		public double Baseline => _baseline * (1.0 / 10000);
-		private readonly int _baseline;
+		public double Baseline => _baseline;
+		private readonly float _baseline;
 
 		/// <summary>
 		/// The ascent of typical lowercase letters in this font, in pixels, excluding
@@ -58,38 +58,38 @@ namespace HalfMaid.Img.Fonts
 		/// This is always a positive number, and always &lt;= MaxAscent, and typically
 		/// &lt;= Ascent for most fonts.
 		/// </summary>
-		public double LowercaseAscent => _lowercaseAscent * (1.0 / 10000);
-		private readonly int _lowercaseAscent;
+		public double LowercaseAscent => _lowercaseAscent;
+		private readonly float _lowercaseAscent;
 
 		/// <summary>
 		/// The default space between one line and the next, in pixels.
 		/// </summary>
-		public double LineHeight => _lineHeight * (1.0 / 10000);
-		private readonly int _lineHeight;
+		public double LineHeight => _lineHeight;
+		private readonly float _lineHeight;
 
 		/// <summary>
 		/// The width of an em (a capital M), in pixels.
 		/// </summary>
-		public double EmWidth => _emWidth * (1.0 / 10000);
-		private readonly int _emWidth;
+		public double EmWidth => _emWidth;
+		private readonly float _emWidth;
 
 		/// <summary>
 		/// The width of an ex (a lowercase x), in pixels.
 		/// </summary>
-		public double ExWidth => _exWidth * (1.0 / 10000);
-		private readonly int _exWidth;
+		public double ExWidth => _exWidth;
+		private readonly float _exWidth;
 
 		/// <summary>
 		/// The width of a space character, in pixels.  Typically 1/4 to 1/3 of an em.
 		/// </summary>
-		public double Space => _space * (1.0 / 10000);
-		private readonly int _space;
+		public double Space => _space;
+		private readonly float _space;
 
 		/// <summary>
 		/// The amount of kerning to add between non-space characters.
 		/// </summary>
-		public double Kerning => _kerning * (1.0 / 10000);
-		private readonly int _kerning;
+		public double Kerning => _kerning;
+		private readonly float _kerning;
 
 		/// <summary>
 		/// Whether this is a monospace font, or a proportional/fixed-width font.
@@ -135,17 +135,17 @@ namespace HalfMaid.Img.Fonts
 			double emWidth = 0, double exWidth = 0, double space = 0, double kerning = 0,
 			bool monospace = false)
 		{
-			_ascent = (int)(ascent * 10000 + 0.5);
-			_maxAscent = (int)(maxAscent * 10000 + 0.5);
-			_descent = (int)(descent * 10000 + 0.5);
-			_maxDescent = (int)(maxDescent * 10000 + 0.5);
-			_baseline = (int)(baseline * 10000 + 0.5);
-			_lowercaseAscent = (int)(lowercaseAscent * 10000 + 0.5);
-			_lineHeight = (int)(lineHeight * 10000 + 0.5);
-			_emWidth = (int)(emWidth * 10000 + 0.5);
-			_exWidth = (int)(exWidth * 10000 + 0.5);
-			_space = (int)(space * 10000 + 0.5);
-			_kerning = (int)(kerning * 10000 + 0.5);
+			_ascent = (float)ascent;
+			_maxAscent = (float)maxAscent;
+			_descent = (float)descent;
+			_maxDescent = (float)maxDescent;
+			_baseline = (float)baseline;
+			_lowercaseAscent = (float)lowercaseAscent;
+			_lineHeight = (float)lineHeight;
+			_emWidth = (float)emWidth;
+			_exWidth = (float)exWidth;
+			_space = (float)space;
+			_kerning = (float)kerning;
 			_monospace = monospace;
 		}
 
@@ -260,17 +260,17 @@ namespace HalfMaid.Img.Fonts
 			unchecked
 			{
 				int hashCode = 0;
-				hashCode = (hashCode        ) + _ascent;
-				hashCode = (hashCode * 65599) + _maxAscent;
-				hashCode = (hashCode * 65599) + _descent;
-				hashCode = (hashCode * 65599) + _maxDescent;
-				hashCode = (hashCode * 65599) + _baseline;
-				hashCode = (hashCode * 65599) + _lowercaseAscent;
-				hashCode = (hashCode * 65599) + _lineHeight;
-				hashCode = (hashCode * 65599) + _emWidth;
-				hashCode = (hashCode * 65599) + _exWidth;
-				hashCode = (hashCode * 65599) + _space;
-				hashCode = (hashCode * 65599) + _kerning;
+				hashCode = (hashCode        ) + _ascent.GetHashCode();
+				hashCode = (hashCode * 65599) + _maxAscent.GetHashCode();
+				hashCode = (hashCode * 65599) + _descent.GetHashCode();
+				hashCode = (hashCode * 65599) + _maxDescent.GetHashCode();
+				hashCode = (hashCode * 65599) + _baseline.GetHashCode();
+				hashCode = (hashCode * 65599) + _lowercaseAscent.GetHashCode();
+				hashCode = (hashCode * 65599) + _lineHeight.GetHashCode();
+				hashCode = (hashCode * 65599) + _emWidth.GetHashCode();
+				hashCode = (hashCode * 65599) + _exWidth.GetHashCode();
+				hashCode = (hashCode * 65599) + _space.GetHashCode();
+				hashCode = (hashCode * 65599) + _kerning.GetHashCode();
 				hashCode = (hashCode * 65599) + _monospace.GetHashCode();
 				return hashCode;
 			}
