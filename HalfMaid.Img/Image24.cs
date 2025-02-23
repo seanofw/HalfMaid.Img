@@ -1022,9 +1022,11 @@ namespace HalfMaid.Img
 		/// <param name="width">The width of the blit, which will be updated to within bounds of both images.</param>
 		/// <param name="height">The height of the blit, which will be updated to within bounds of both images.</param>
 		/// <returns>True if the blit can proceed, or false if the blit should be aborted due to illegal/unusable values.</returns>
+		[Pure]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool ClipBlit(Vector2i destImageSize, Vector2i srcImageSize, ref int srcX, ref int srcY,
 			ref int destX, ref int destY, ref int width, ref int height)
-			=> Image32.ClipBlit(destImageSize, srcImageSize, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height);
+			=> InternalAlgorithms.ClipBlit(destImageSize, srcImageSize, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height);
 
 		/// <summary>
 		/// Clip the given drawing rectangle to be within the image.
@@ -1035,8 +1037,10 @@ namespace HalfMaid.Img
 		/// <param name="width">The width of the rectangle, which will be updated to be within the image.</param>
 		/// <param name="height">The height of the rectangle, which will be updated to be within the image.</param>
 		/// <returns>True if the drawing may proceed, or false if the rectangle is invalid/unusable.</returns>
+		[Pure]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool ClipRect(Vector2i imageSize, ref int x, ref int y, ref int width, ref int height)
-			=> Image32.ClipRect(imageSize, ref x, ref y, ref width, ref height);
+			=> InternalAlgorithms.ClipRect(imageSize, ref x, ref y, ref width, ref height);
 
 		#endregion
 
@@ -1399,50 +1403,13 @@ namespace HalfMaid.Img
 				fixed (Color24* destBase = Data)
 				fixed (Color24* srcBase = srcImage.Data)
 				{
-					Color24* src = srcBase + srcImage.Width * srcY + srcX;
-					Color24* dest = destBase + Width * destY + destX;
-
-					int srcStep = 1;
-					int destStep = 1;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-
-					if (src < dest)
-					{
-						// To produce proper "move" semantics, we need to reverse the blit
-						// so that we're not accidentally stomping on part of the source data
-						// during the operation.  We do this by flipping src in both directions,
-						// and then also flipping dest in both directions.
-
-						// Flip src vertically.
-						src += srcImage.Width * (height - 1);
-						srcSkip = -width - srcImage.Width;
-
-						// Flip src horizontally.
-						srcStep = -1;
-						src += width - 1;
-						srcSkip += width;
-
-						// Now flip dest too, which will result in the original desired orientation.
-						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
-					}
-
-					if ((blitFlags & BlitFlags.FlipVert) != 0)
-					{
-						dest += Width * (height - 1);
-						destSkip = -width - Width;
-					}
-
-					if ((blitFlags & BlitFlags.FlipHorz) != 0)
-					{
-						destStep = -1;
-						dest += width - 1;
-						destSkip += width;
-					}
+					InternalAlgorithms.SetupBlit(new Vector2i(width, height), blitFlags,
+						new Vector2i(srcX, srcY), srcImage.Size, srcBase, out Color24* src, out int srcStep, out int srcSkip,
+						new Vector2i(destX, destY), Size, destBase, out Color24* dest, out int destStep, out int destSkip);
 
 					do
 					{
-						Color24* end = src + width;
+						Color24* end = src + width * srcStep;
 
 						switch (mode)
 						{
@@ -1536,50 +1503,13 @@ namespace HalfMaid.Img
 				fixed (Color24* destBase = Data)
 				fixed (Color32* srcBase = srcImage.Data)
 				{
-					Color32* src = srcBase + srcImage.Width * srcY + srcX;
-					Color24* dest = destBase + Width * destY + destX;
-
-					int srcStep = 1;
-					int destStep = 1;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-
-					if (src < dest)
-					{
-						// To produce proper "move" semantics, we need to reverse the blit
-						// so that we're not accidentally stomping on part of the source data
-						// during the operation.  We do this by flipping src in both directions,
-						// and then also flipping dest in both directions.
-
-						// Flip src vertically.
-						src += srcImage.Width * (height - 1);
-						srcSkip = -width - srcImage.Width;
-
-						// Flip src horizontally.
-						srcStep = -1;
-						src += width - 1;
-						srcSkip += width;
-
-						// Now flip dest too, which will result in the original desired orientation.
-						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
-					}
-
-					if ((blitFlags & BlitFlags.FlipVert) != 0)
-					{
-						dest += Width * (height - 1);
-						destSkip = -width - Width;
-					}
-
-					if ((blitFlags & BlitFlags.FlipHorz) != 0)
-					{
-						destStep = -1;
-						dest += width - 1;
-						destSkip += width;
-					}
+					InternalAlgorithms.SetupBlit(new Vector2i(width, height), blitFlags,
+						new Vector2i(srcX, srcY), srcImage.Size, srcBase, out Color32* src, out int srcStep, out int srcSkip,
+						new Vector2i(destX, destY), Size, destBase, out Color24* dest, out int destStep, out int destSkip);
 
 					do
 					{
-						Color32* end = src + width;
+						Color32* end = src + width * srcStep;
 
 						switch (mode)
 						{
@@ -1680,50 +1610,13 @@ namespace HalfMaid.Img
 				fixed (Color24* destBase = Data)
 				fixed (byte* srcBase = srcImage.Data)
 				{
-					byte* src = srcBase + srcImage.Width * srcY + srcX;
-					Color24* dest = destBase + Width * destY + destX;
-
-					int srcStep = 1;
-					int destStep = 1;
-					int srcSkip = srcImage.Width - width;
-					int destSkip = Width - width;
-
-					if (src < dest)
-					{
-						// To produce proper "move" semantics, we need to reverse the blit
-						// so that we're not accidentally stomping on part of the source data
-						// during the operation.  We do this by flipping src in both directions,
-						// and then also flipping dest in both directions.
-
-						// Flip src vertically.
-						src += srcImage.Width * (height - 1);
-						srcSkip = -width - srcImage.Width;
-
-						// Flip src horizontally.
-						srcStep = -1;
-						src += width - 1;
-						srcSkip += width;
-
-						// Now flip dest too, which will result in the original desired orientation.
-						blitFlags ^= BlitFlags.FlipVert | BlitFlags.FlipHorz;
-					}
-
-					if ((blitFlags & BlitFlags.FlipVert) != 0)
-					{
-						dest += Width * (height - 1);
-						destSkip = -width - Width;
-					}
-
-					if ((blitFlags & BlitFlags.FlipHorz) != 0)
-					{
-						destStep = -1;
-						dest += width - 1;
-						destSkip += width;
-					}
+					InternalAlgorithms.SetupBlit(new Vector2i(width, height), blitFlags,
+						new Vector2i(srcX, srcY), srcImage.Size, srcBase, out byte* src, out int srcStep, out int srcSkip,
+						new Vector2i(destX, destY), Size, destBase, out Color24* dest, out int destStep, out int destSkip);
 
 					do
 					{
-						byte* end = src + width;
+						byte* end = src + width * srcStep;
 
 						switch (mode)
 						{

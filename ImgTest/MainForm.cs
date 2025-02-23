@@ -21,50 +21,39 @@ namespace ImgTest
 		{
 			InitializeComponent();
 
-			Image32 image = new Image32(400, 200);
+			Image32 image = new Image32(480, 270);
 			image.FillGradientRect(new Rect(0, 0, image.Width, image.Height),
-				Color32.Black, Color32.Red, Color32.Green, Color32.Yellow);
+				Color32.Blue, Color32.Red, Color32.Green, Color32.Yellow);
+
+/*
+			// Testing the font core, with the built-in Clean and Clean Mono fonts.
 			image.DrawLine(new Vector2i(0, image.Height / 2 - 1),
 				new Vector2i(image.Width, image.Height / 2 - 1), Color32.Black);
-			/*
-			int y = 0;
-			image.DrawText(new Vector2d(0, y), "Pack my box with five dozen liquor jugs.", BuiltinFonts.CleanMono, Color32.White);
-			y += (int)(BuiltinFonts.CleanMono.Metrics.LineHeight + 0.5);
-			image.DrawText(new Vector2d(0, y), "Jackdaws love my big sphinx of quartz.", BuiltinFonts.CleanMono, Color32.White);
-			y += (int)(BuiltinFonts.CleanMono.Metrics.LineHeight + 0.5);
-			image.DrawText(new Vector2d(0, y), "The quick brown fox jumps over the lazy dog.", BuiltinFonts.CleanMono, Color32.White);
-			y += (int)(BuiltinFonts.CleanMono.Metrics.LineHeight + 0.5);
-			image.DrawText(new Vector2d(0, y), "Player 1: X=25.3, Y=47.1, Z=19.2", BuiltinFonts.CleanMono, Color32.White);
-			y += (int)(BuiltinFonts.CleanMono.Metrics.LineHeight + 0.5);
-			image.DrawText(new Vector2d(0, y), "Press Enter to continue", BuiltinFonts.CleanMono, Color32.White);
-			y += (int)(BuiltinFonts.CleanMono.Metrics.LineHeight + 0.5);
-			image.DrawText(new Vector2d(0, y), "image.DrawText(\"abc\", new Vector2d(x, y));", BuiltinFonts.CleanMono, Color32.White);
-			y += (int)(BuiltinFonts.CleanMono.Metrics.LineHeight + 0.5);
-			*/
 			image.DrawMultilineText(new Rect(0, 1, image.Width, image.Height / 2), @"Welcome to the jungle
 We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.Clean, Color32.Black, textAlignment: TextAlignment.BottomRight);
+				BuiltinFonts.Clean, Color32.Black, textAlignment: TextAlignment.Center);
 			image.DrawMultilineText(new Rect(0, 0, image.Width, image.Height / 2), @"Welcome to the jungle
 We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.Clean, Color32.White, textAlignment: TextAlignment.BottomRight);
+				BuiltinFonts.Clean, Color32.White, textAlignment: TextAlignment.Center);
 			image.DrawMultilineText(new Rect(0, image.Height / 2 + 1, image.Width, image.Height / 2), @"Welcome to the jungle
 We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.CleanMono, Color32.Black, textAlignment: TextAlignment.BottomRight);
+				BuiltinFonts.CleanMono, Color32.Black, textAlignment: TextAlignment.Center);
 			image.DrawMultilineText(new Rect(0, image.Height / 2, image.Width, image.Height / 2), @"Welcome to the jungle
 We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.CleanMono, Color32.White, textAlignment: TextAlignment.BottomRight);
+				BuiltinFonts.CleanMono, Color32.White, textAlignment: TextAlignment.Center);
+*/
 			Image = image;
 
 			UpdateImage();
@@ -201,9 +190,8 @@ Honey, we know the names
 			Bitmap?.Dispose();
 			Bitmap = null;
 
-			//PureImage32 image2 = Image.ResampleToFit(new Vector2i(ImageBox.Width, ImageBox.Height),
-			//	mode: ResampleMode.Lanczos5);
-			PureImage32 image2 = Image.ResizeToFit(new Vector2i(ImageBox.Width, ImageBox.Height));
+			PureImage32 image2 = Image.ResampleToFit(new Vector2i(ImageBox.Width, ImageBox.Height),
+				mode: ResampleMode.BSpline);
 			int leftoverX = ImageBox.Width - image2.Width;
 			int leftoverY = ImageBox.Height - image2.Height;
 			image2 = image2.Pad(leftoverX / 2, leftoverY / 2, leftoverX - (leftoverX / 2), leftoverY - (leftoverY / 2),

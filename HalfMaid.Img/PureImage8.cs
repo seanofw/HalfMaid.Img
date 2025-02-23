@@ -553,7 +553,7 @@ namespace HalfMaid.Img
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool ClipBlit(Vector2i destImageSize, Vector2i srcImageSize, ref int srcX, ref int srcY,
 			ref int destX, ref int destY, ref int width, ref int height)
-			=> Image32.ClipBlit(destImageSize, srcImageSize, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height);
+			=> InternalAlgorithms.ClipBlit(destImageSize, srcImageSize, ref srcX, ref srcY, ref destX, ref destY, ref width, ref height);
 
 		/// <summary>
 		/// Clip the given drawing rectangle to be within the image.
@@ -567,7 +567,7 @@ namespace HalfMaid.Img
 		[Pure]
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool ClipRect(Vector2i imageSize, ref int x, ref int y, ref int width, ref int height)
-			=> Image32.ClipRect(imageSize, ref x, ref y, ref width, ref height);
+			=> InternalAlgorithms.ClipRect(imageSize, ref x, ref y, ref width, ref height);
 
 		#endregion
 
