@@ -193,8 +193,6 @@ namespace HalfMaid.Img.OpenGL
 			Name = name;
 #if DEBUG
 			AllocationStack = PruneStackTrace(Environment.StackTrace);
-#else
-			AllocationStack = null;
 #endif
 
 			Handle = CreateOpenGLObject((void*)data, width, height, name,
@@ -236,8 +234,6 @@ namespace HalfMaid.Img.OpenGL
 			Name = name;
 #if DEBUG
 			AllocationStack = PruneStackTrace(Environment.StackTrace);
-#else
-			AllocationStack = null;
 #endif
 
 			unsafe
