@@ -77,11 +77,17 @@
 	  <None Remove="Fonts\Roboto-20.png" />
 	  <None Remove="Resources\Clean Mono-15.png" />
 	  <None Remove="Resources\Clean-15.png" />
+	  <None Remove="Resources\Pixelly Bold-9.png" />
+	  <None Remove="Resources\Pixelly-9.png" />
+	  <None Remove="Resources\Tiny-6.png" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <EmbeddedResource Include="Resources\Clean Mono-15.png" />
 	  <EmbeddedResource Include="Resources\Clean-15.png" />
+	  <EmbeddedResource Include="Resources\Pixelly Bold-9.png" />
+	  <EmbeddedResource Include="Resources\Pixelly-9.png" />
+	  <EmbeddedResource Include="Resources\Tiny-6.png" />
 	</ItemGroup>
 
 </Project>
