@@ -190,7 +190,7 @@ namespace HalfMaid.Img.Fonts
 
 			string weight = isBold ? " Bold" : string.Empty;
 			Image8? image = Image8.LoadEmbeddedResource(Assembly.GetExecutingAssembly(),
-				$"HalfMaid.Img.Resources.{builtinFontInfo.Name}{weight}-{builtinFontInfo.Size}.png");
+				$"HalfMaid.Img.Fonts.Resources.{builtinFontInfo.Name}{weight}-{builtinFontInfo.Size}.png");
 			if (image == null)
 				throw new InvalidOperationException($"Failed loading built-in font '{builtinFontInfo.Name}{weight}' at point size '{builtinFontInfo.Size}'.");
 

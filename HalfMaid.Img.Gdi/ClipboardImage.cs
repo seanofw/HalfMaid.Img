@@ -1,5 +1,6 @@
 ﻿#pragma warning disable CA1416
 
+using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -7,6 +8,9 @@ using HalfMaid.Img.FileFormats.Bmp;
 
 namespace HalfMaid.Img.Gdi
 {
+	/// <summary>
+	/// Access to the Windows clipboard.
+	/// </summary>
 	public static class ClipboardImage
 	{
 		private const int BitmapFileHeaderSize = 14;

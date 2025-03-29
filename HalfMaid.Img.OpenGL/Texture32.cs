@@ -1,5 +1,9 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
@@ -179,6 +183,7 @@ namespace HalfMaid.Img.OpenGL
 		/// after this call.</param>
 		/// <param name="width">The width of the texture.</param>
 		/// <param name="height">The height of the texture.</param>
+		/// <param name="name">A name for this texture (optional, but useful for debugging).</param>
 		/// <param name="minFilter">The minification filter to use when the texture is rendered small.
 		/// The default is nearest-neighbor mapping, not any form of filtering.</param>
 		/// <param name="magFilter">The magnification filter to use when the texture is rendered large.
@@ -225,6 +230,7 @@ namespace HalfMaid.Img.OpenGL
 		/// after this call.</param>
 		/// <param name="width">The width of the texture.</param>
 		/// <param name="height">The height of the texture.</param>
+		/// <param name="name">A name for this texture (optional, but useful for debugging).</param>
 		/// <param name="minFilter">The minification filter to use when the texture is rendered small.
 		/// The default is nearest-neighbor mapping, not any form of filtering.</param>
 		/// <param name="magFilter">The magnification filter to use when the texture is rendered large.
@@ -331,6 +337,7 @@ namespace HalfMaid.Img.OpenGL
 		/// data can be presumed to have been copied into the texture, and can safely be disposed
 		/// after this call.</param>
 		/// <param name="size">The size (width and height) of the texture, in texels.</param>
+		/// <param name="name">A name for this texture (optional, but useful for debugging).</param>
 		/// <param name="minFilter">The minification filter to use when the texture is rendered small.
 		/// The default is nearest-neighbor mapping, not any form of filtering.</param>
 		/// <param name="magFilter">The magnification filter to use when the texture is rendered large.
@@ -360,6 +367,7 @@ namespace HalfMaid.Img.OpenGL
 		/// <param name="image">A 32-bit RGBA format image to use to create the texture.  The source
 		/// image can be presumed to have been copied into the texture, and can safely be disposed
 		/// after this call.</param>
+		/// <param name="name">A name for this texture (optional, but useful for debugging).</param>
 		/// <param name="minFilter">The minification filter to use when the texture is rendered small.
 		/// The default is nearest-neighbor mapping, not any form of filtering.</param>
 		/// <param name="magFilter">The magnification filter to use when the texture is rendered large.
@@ -395,6 +403,7 @@ namespace HalfMaid.Img.OpenGL
 		/// after this call.</param>
 		/// <param name="width">The width of the texture.</param>
 		/// <param name="height">The height of the texture.</param>
+		/// <param name="name">A name for this texture (optional, but useful for debugging).</param>
 		/// <param name="minFilter">The minification filter to use when the texture is rendered small.</param>
 		/// <param name="magFilter">The magnification filter to use when the texture is rendered large.</param>
 		/// <param name="wrapS">How to wrap or cut off this texture at its horizontal edges.</param>
@@ -577,7 +586,6 @@ namespace HalfMaid.Img.OpenGL
 		/// Copy the given subimage to the given target rectangle of this texture.
 		/// </summary>
 		/// <param name="srcImage">The source image to replace the destination rectangle with.</param>
-		/// <param name="srcImage">The source image to copy from.</param>
 		/// <param name="srcX">The X coordinate of the top-left corner in the source image to start copying from.</param>
 		/// <param name="srcY">The Y coordinate of the top-left corner in the source image to start copying from.</param>
 		/// <param name="destX">The X coordinate of the top-left corner in the destination image to start copying to.</param>

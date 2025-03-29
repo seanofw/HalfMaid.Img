@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HalfMaid.Img.Gdi", "HalfMai
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HalfMaid.Img.OpenGL", "HalfMaid.Img.OpenGL\HalfMaid.Img.OpenGL.csproj", "{E8EDD135-5FD2-49AB-B40E-531274C6089F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HalfMaid.Img.Fonts", "HalfMaid.Img.Fonts\HalfMaid.Img.Fonts.csproj", "{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{E8EDD135-5FD2-49AB-B40E-531274C6089F}.Release|x64.Build.0 = Release|Any CPU
 		{E8EDD135-5FD2-49AB-B40E-531274C6089F}.Release|x86.ActiveCfg = Release|Any CPU
 		{E8EDD135-5FD2-49AB-B40E-531274C6089F}.Release|x86.Build.0 = Release|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Debug|x64.Build.0 = Debug|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Debug|x86.Build.0 = Debug|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Release|x64.ActiveCfg = Release|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Release|x64.Build.0 = Release|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Release|x86.ActiveCfg = Release|Any CPU
+		{E5139C65-9B9A-4AAB-819A-610FC42AEEA8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

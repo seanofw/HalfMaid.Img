@@ -1,10 +1,15 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using System.Drawing.Imaging;
 
 #pragma warning disable CA1416
 
 namespace HalfMaid.Img.Gdi
 {
+	/// <summary>
+	/// Extension methods on the WinForms Bitmap object and HalfMaid Image classes to support
+	/// interoperability/conversion between the two.
+	/// </summary>
 	public static class ImageBitmapExtensions
 	{
 		/// <summary>
