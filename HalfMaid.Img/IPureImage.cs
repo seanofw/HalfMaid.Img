@@ -10,6 +10,14 @@
 	/// </remarks>
 	public interface IPureImage : IImageBase
 	{
+		/// <summary>
+		/// Extract the internal image reference directly.  There *can* be use cases
+		/// for this in high-performance situations, but as its name implies, it's
+		/// dangerous, because it gives you direct access to the image, which can
+		/// violate purity semantics.
+		/// </summary>
+		/// <returns>The raw IImage contained within this IPureImage.</returns>
+		IImage DangerouslyUnwrap();
 	}
 
 	/// <summary>

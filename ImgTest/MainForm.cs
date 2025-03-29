@@ -25,7 +25,6 @@ namespace ImgTest
 			image.FillGradientRect(new Rect(0, 0, image.Width, image.Height),
 				Color32.Blue, Color32.Red, Color32.Green, Color32.Yellow);
 
-/*
 			// Testing the font core, with the built-in Clean and Clean Mono fonts.
 			image.DrawLine(new Vector2i(0, image.Height / 2 - 1),
 				new Vector2i(image.Width, image.Height / 2 - 1), Color32.Black);
@@ -34,26 +33,26 @@ We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.Clean, Color32.Black, textAlignment: TextAlignment.Center);
+				BuiltinFonts.Tiny, Color32.Black, textAlignment: TextAlignment.Center);
 			image.DrawMultilineText(new Rect(0, 0, image.Width, image.Height / 2), @"Welcome to the jungle
 We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.Clean, Color32.White, textAlignment: TextAlignment.Center);
+				BuiltinFonts.Tiny, Color32.White, textAlignment: TextAlignment.Center);
 			image.DrawMultilineText(new Rect(0, image.Height / 2 + 1, image.Width, image.Height / 2), @"Welcome to the jungle
 We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.CleanMono, Color32.Black, textAlignment: TextAlignment.Center);
+				BuiltinFonts.Pixelly, Color32.Black, textAlignment: TextAlignment.Center);
 			image.DrawMultilineText(new Rect(0, image.Height / 2, image.Width, image.Height / 2), @"Welcome to the jungle
 We got fun and games
 We got everything you want
 Honey, we know the names
 ",
-				BuiltinFonts.CleanMono, Color32.White, textAlignment: TextAlignment.Center);
-*/
+				BuiltinFonts.Pixelly, Color32.White, textAlignment: TextAlignment.Center);
+
 			Image = image;
 
 			UpdateImage();
